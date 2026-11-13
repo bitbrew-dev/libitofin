@@ -431,8 +431,8 @@ impl FixedVsFloatingSwap {
     ///
     /// # Errors
     ///
-    /// The rate must be available (a priced, non-expired swap with a fixed-leg
-    /// BPS).
+    /// The rate must be available (a priced, non-expired swap with a non-zero
+    /// fixed-leg BPS).
     pub fn fair_rate(&mut self) -> QlResult<Rate> {
         self.calculate()?;
         let Some(value) = self.fair_rate else {
@@ -447,7 +447,7 @@ impl FixedVsFloatingSwap {
     /// # Errors
     ///
     /// The spread must be available (a priced, non-expired swap with a
-    /// floating-leg BPS).
+    /// non-zero floating-leg BPS).
     pub fn fair_spread(&mut self) -> QlResult<Spread> {
         self.calculate()?;
         let Some(value) = self.fair_spread else {
@@ -528,11 +528,13 @@ impl Instrument for FixedVsFloatingSwap {
         let npv = swap_results.instrument.value;
         if fair_rate.is_none()
             && let (Some(&bps), Some(npv)) = (swap_results.leg_bps.first(), npv)
+            && bps != 0.0
         {
             fair_rate = Some(self.fixed_rate - npv / (bps / BASIS_POINT));
         }
         if fair_spread.is_none()
             && let (Some(&bps), Some(npv)) = (swap_results.leg_bps.get(1), npv)
+            && bps != 0.0
         {
             fair_spread = Some(self.spread - npv / (bps / BASIS_POINT));
         }
