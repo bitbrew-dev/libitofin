@@ -307,7 +307,7 @@ impl YearOnYearInflationSwap {
     /// # Errors
     ///
     /// The rate must be available: a priced, non-expired swap whose engine
-    /// returned the fixed leg's BPS.
+    /// returned a non-zero BPS for the fixed leg.
     pub fn fair_rate(&mut self) -> QlResult<Rate> {
         self.calculate()?;
         let Some(value) = self.fair_rate else {
@@ -370,13 +370,13 @@ impl Instrument for YearOnYearInflationSwap {
     }
 }
 
-/// `quoted - NPV/(BPS/1e-4)`, the C++ recovery (`cpp:186-190`), left unset when
-/// the engine returned no NPV or no BPS for the leg.
+/// `quoted - NPV/(BPS/1e-4)`, the C++ recovery (`cpp:186-195`), left unset when
+/// the engine returned no NPV, or a null or zero BPS for the leg.
 fn recover(npv: Option<Real>, leg_bps: Option<&Real>, quoted: Real) -> Option<Real> {
     let (Some(npv), Some(&bps)) = (npv, leg_bps) else {
         return None;
     };
-    (!bps.is_null()).then(|| quoted - npv / (bps / BASIS_POINT))
+    (!bps.is_null() && bps != 0.0).then(|| quoted - npv / (bps / BASIS_POINT))
 }
 #[cfg(test)]
 mod tests {
@@ -500,6 +500,10 @@ mod tests {
     /// builds (`inflationhelpers.cpp:314-321`): unadjusted, backward-generated,
     /// UK, one year.
     fn a_swap(swap_type: SwapType, fixed_rate: Rate) -> YearOnYearInflationSwap {
+        a_swap_on(swap_type, NOMINAL, fixed_rate)
+    }
+
+    fn a_swap_on(swap_type: SwapType, nominal: Real, fixed_rate: Rate) -> YearOnYearInflationSwap {
         let settings = settings_today();
         let schedule = MakeSchedule::new()
             .from(today())
@@ -511,7 +515,7 @@ mod tests {
             .build();
         let mut swap = YearOnYearInflationSwap::new(
             swap_type,
-            NOMINAL,
+            nominal,
             schedule.clone(),
             fixed_rate,
             day_counter(),
@@ -662,5 +666,29 @@ mod tests {
 
         assert!(swap.fair_rate().is_err());
         assert!(swap.fair_spread().is_err());
+    }
+
+    /// `inflation.cpp` `testZeroBpsYoYInflationSwapFairRateAndSpread` (:1096),
+    /// on this module's flat fixture rather than the test's `UKRPI` history and
+    /// `nominalTermStructure()`: the outcome only needs both leg BPS to be zero,
+    /// which a zero nominal gives on any curve. The fallback is skipped
+    /// (`yearonyearinflationswap.cpp:188,193`) and both accessors fail. The
+    /// fair values are read before the leg BPS, which compute only the inner
+    /// `Swap`.
+    #[test]
+    fn a_zero_nominal_swap_has_no_fair_values() {
+        let mut swap = a_swap_on(SwapType::Payer, 0.0, CURVE_RATE);
+
+        assert!(!swap.is_expired().unwrap());
+        assert_eq!(
+            swap.fair_rate().unwrap_err().message(),
+            "result not available"
+        );
+        assert_eq!(
+            swap.fair_spread().unwrap_err().message(),
+            "result not available"
+        );
+        assert_eq!(swap.swap_mut().leg_bps(0).unwrap(), 0.0);
+        assert_eq!(swap.swap_mut().leg_bps(1).unwrap(), 0.0);
     }
 }

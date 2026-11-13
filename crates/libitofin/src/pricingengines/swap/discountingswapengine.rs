@@ -234,6 +234,7 @@ mod tests {
         settlement: Date,
         curve: Handle<dyn YieldTermStructure>,
         index: Shared<IborIndex>,
+        nominal: Real,
     }
 
     impl Vars {
@@ -264,6 +265,7 @@ mod tests {
                 settlement,
                 curve,
                 index,
+                nominal: NOMINAL,
             }
         }
 
@@ -299,7 +301,7 @@ mod tests {
                 .build();
             let mut swap = VanillaSwap::new(
                 SwapType::Payer,
-                NOMINAL,
+                self.nominal,
                 fixed_schedule,
                 fixed_rate,
                 Thirty360::with_convention(Convention::BondBasis),
@@ -391,6 +393,32 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// `swap.cpp` `testZeroBpsFairRateAndSpread` (:682): on a zero nominal both
+    /// leg BPS are exactly zero, so the fair-value fallback is skipped
+    /// (`fixedvsfloatingswap.cpp:201,206`) and both accessors fail instead of
+    /// answering `0/0`. The fair values are read before the leg BPS: a leg
+    /// accessor computes only the inner `Swap`, whose results then never reach
+    /// the fair-value fallback.
+    #[test]
+    fn a_zero_nominal_swap_has_no_fair_values() {
+        let mut vars = Vars::new(Date::new(17, Month::June, 2002), true);
+        vars.nominal = 0.0;
+        let mut swap = vars.make_swap(10, 0.0, 0.0);
+        let base = swap.fixed_vs_floating_mut();
+
+        assert!(!base.is_expired().unwrap());
+        assert_eq!(
+            base.fair_rate().unwrap_err().message(),
+            "result not available"
+        );
+        assert_eq!(
+            base.fair_spread().unwrap_err().message(),
+            "result not available"
+        );
+        assert_eq!(base.fixed_leg_bps().unwrap(), 0.0);
+        assert_eq!(base.floating_leg_bps().unwrap(), 0.0);
     }
 
     /// An empty discount-curve handle is rejected before any discounting, as the
