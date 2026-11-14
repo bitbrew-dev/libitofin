@@ -33,7 +33,9 @@ pub struct DiscretizedCallableFixedRateBond {
 
 impl DiscretizedCallableFixedRateBond {
     /// Builds the discretized bond from the engine arguments and the discount
-    /// curve (`discretizedcallablefixedratebond.cpp:35-100`).
+    /// curve (`discretizedcallablefixedratebond.cpp:35-109`, v1.44). An
+    /// exercise dated on a coupon that a snapped neighbour moved ahead adds
+    /// that coupon to its price.
     ///
     /// # Errors
     ///
@@ -86,6 +88,15 @@ impl DiscretizedCallableFixedRateBond {
             adjusted[i] *= args.face_amount / 100.0;
             require!(adjusted[i].is_finite(), "exercise amount overflow");
             callability_times.push(call_time);
+        }
+
+        for (i, call_date) in args.callability_dates.iter().enumerate() {
+            for (j, coupon_date) in args.coupon_dates.iter().enumerate() {
+                if coupon_adjustments[j] == CouponAdjustment::Pre && call_date == coupon_date {
+                    adjusted[i] += args.coupon_amounts[j];
+                    require!(adjusted[i].is_finite(), "exercise amount overflow");
+                }
+            }
         }
 
         require!(
