@@ -107,8 +107,9 @@ impl CumulativeBinomialDistribution {
             return 1.0;
         }
         // a = k+1 >= 1, b = n-k >= 1, x = p in [0, 1]: incomplete_beta is valid;
-        // its only residual failure is non-convergence, asserted away per the
-        // eval error-boundary convention.
+        // its only residual failure is non-convergence, which its sqrt-scaled
+        // iteration limit rules out (#1463, tests/incomplete_beta_large_a.rs),
+        // asserted away per the eval error-boundary convention.
         1.0 - incomplete_beta((k + 1) as Real, (self.n - k) as Real, self.p)
             .expect("incomplete_beta converges for valid binomial CDF parameters")
     }

@@ -4,6 +4,11 @@
 //! regularized [`incomplete_beta`] (the CDF of the Beta distribution), the
 //! latter via the Numerical Recipes continued-fraction expansion with a
 //! [`log_gamma`] prefactor. Needed for the Student-t CDF.
+//!
+//! Divergence from QuantLib: the continued fraction keeps QuantLib's
+//! accuracy (`1e-16`) but its iteration limit grows with the parameters (see
+//! [`incomplete_beta`]), where QuantLib's fixed limit of 100 throws for large
+//! `a` or `b` (#1463).
 
 use crate::errors::QlResult;
 use crate::fail;
@@ -11,7 +16,7 @@ use crate::math::gammafunction::log_gamma;
 use crate::types::Real;
 
 const ACCURACY: Real = 1e-16;
-const MAX_ITERATIONS: u32 = 100;
+const MIN_ITERATIONS: u32 = 100;
 
 /// The complete beta function `B(z, w) = Γ(z)·Γ(w) / Γ(z+w)`.
 ///
@@ -37,10 +42,23 @@ pub fn beta_function(z: Real, w: Real) -> QlResult<Real> {
 ///
 /// `a` and `b` must be strictly positive and `x` must lie in `[0, 1]`.
 ///
+/// The continued fraction runs up to `max(100, ceil(10·sqrt(max(a, b))))`
+/// iterations, where QuantLib's `incompleteBetaFunction` (`beta.hpp`) stops at
+/// 100 and throws. Near the branch crossover the fraction needs a number of
+/// iterations growing like `sqrt(max(a, b))`, and its `1e-16` accuracy is
+/// below half an ulp of 1, so it stops only on an exactly unit step: the
+/// Student-t cdf at `ν = 1000` and `ν = 10000` near `t = -1.73`, and the
+/// Binomial cdf at `n = 100000`, failed at 100 iterations. Every input that
+/// converged within 100 iterations exits at the same iteration with the same
+/// result. Past iteration 100 a `NaN` running product, which no later step can
+/// clear, returns the non-convergence error at once rather than spinning to
+/// the limit.
+///
 /// # Errors
 ///
 /// Returns an error if `a <= 0`, `b <= 0`, `x` is outside `[0, 1]`, any
-/// argument is `NaN`, or the continued fraction fails to converge.
+/// argument is `NaN`, or the continued fraction fails to converge within its
+/// iteration limit.
 ///
 /// # Examples
 ///
@@ -96,8 +114,9 @@ fn beta_continued_fraction(a: Real, b: Real, x: Real) -> QlResult<Real> {
     }
     d = 1.0 / d;
     let mut result = d;
+    let max_iterations = MIN_ITERATIONS.max((10.0 * a.max(b).sqrt()).ceil() as u32);
 
-    for iter in 1..=MAX_ITERATIONS {
+    for iter in 1..=max_iterations {
         let m = iter as Real;
         let m2 = 2.0 * m;
 
@@ -129,6 +148,9 @@ fn beta_continued_fraction(a: Real, b: Real, x: Real) -> QlResult<Real> {
         result *= del;
         if (del - 1.0).abs() < ACCURACY {
             return Ok(result);
+        }
+        if iter > MIN_ITERATIONS && result.is_nan() {
+            break;
         }
     }
     fail!("incomplete_beta continued fraction did not converge (a={a}, b={b})");
