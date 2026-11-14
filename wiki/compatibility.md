@@ -11,6 +11,7 @@ oversight) and is documented at the point of divergence in the source.
 
 - [Time and calendars](#time--calendars-epic-2)
 - [Core state](#core-epic-0)
+- [Math](#math-l1)
 - [Cash flows](#cash-flows-epic-7)
 - [Term structures](#term-structures-epic-4)
 - [Indexes](#indexes-epic-6)
@@ -95,6 +96,21 @@ oversight) and is documented at the point of divergence in the source.
   where QuantLib notifies and then throws. The `enforces_todays_historic_fixings`
   flag's today's-fixing rule is applied by the index layer that reads the store,
   as `InterestRateIndex::fixing` does in C++, not by the store itself.
+
+## Math (L1)
+
+- **The incomplete beta function converges for large parameters where
+  QuantLib throws.** QuantLib's `incompleteBetaFunction` (`beta.hpp`) stops its
+  continued fraction at 100 iterations with a `1e-16` accuracy, which is below
+  half an ulp of 1, so it exits only on an exactly unit step. Near the branch
+  crossover the fraction needs a number of iterations growing like
+  `sqrt(max(a, b))`, so QuantLib throws "a or b too big" for the Student-t cdf
+  at `ν = 1000` and `10000` near `t = -1.73`, and for the Binomial cdf at
+  `n = 100000`. Here the limit is `max(100, ceil(10·sqrt(max(a, b))))`, at the
+  same accuracy: every input that converges within 100 iterations exits at the
+  same iteration with the same result, and the inputs QuantLib rejects return
+  values matching mpmath (`math/beta.rs`, #1463). This keeps the Student-t and
+  Binomial cdfs, which are infallible, from panicking.
 
 ## Cash flows (EPIC-7)
 
