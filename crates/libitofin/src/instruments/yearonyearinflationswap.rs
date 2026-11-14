@@ -674,7 +674,7 @@ mod tests {
     /// which a zero nominal gives on any curve. The fallback is skipped
     /// (`yearonyearinflationswap.cpp:188,193`) and both accessors fail. The
     /// fair values are read before the leg BPS, which compute only the inner
-    /// `Swap`.
+    /// `Swap` (#1456); do not reorder.
     #[test]
     fn a_zero_nominal_swap_has_no_fair_values() {
         let mut swap = a_swap_on(SwapType::Payer, 0.0, CURVE_RATE);

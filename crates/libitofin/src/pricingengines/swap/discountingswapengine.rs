@@ -400,7 +400,7 @@ mod tests {
     /// (`fixedvsfloatingswap.cpp:201,206`) and both accessors fail instead of
     /// answering `0/0`. The fair values are read before the leg BPS: a leg
     /// accessor computes only the inner `Swap`, whose results then never reach
-    /// the fair-value fallback.
+    /// the fair-value fallback (#1456); do not reorder.
     #[test]
     fn a_zero_nominal_swap_has_no_fair_values() {
         let mut vars = Vars::new(Date::new(17, Month::June, 2002), true);
