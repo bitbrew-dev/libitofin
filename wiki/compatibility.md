@@ -111,10 +111,12 @@ oversight) and is documented at the point of divergence in the source.
   input that converges within 100 iterations exits at the same iteration with
   the same result, and the inputs QuantLib rejects return values matching
   mpmath (`math/beta.rs`, #1463). This keeps the Student-t and Binomial cdfs,
-  which are infallible, from panicking. The `10^8` cap, about 30 times what a
-  Binomial cdf at `n = 1e18` needs, bounds the work for absurd parameters,
-  which return `Err`; past iteration 100 a `NaN` running product returns `Err`
-  at once.
+  which are infallible, from panicking. The `10^8` cap, far above the worst
+  iterations-to-limit ratio seen over the swept Student-t and Binomial
+  domains, bounds the work for absurd parameters, which return `Err`; past
+  iteration 100 a `NaN` running product returns a distinct `Err` at once.
+  Convergence is not accuracy: for very large parameters the `lgamma`
+  prefactor cancels (#1468).
 
 ## Cash flows (EPIC-7)
 

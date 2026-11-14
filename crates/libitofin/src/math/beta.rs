@@ -52,11 +52,13 @@ pub fn beta_function(z: Real, w: Real) -> QlResult<Real> {
 /// Student-t cdf at `ν = 1000` and `ν = 10000` near `t = -1.73`, and of the
 /// Binomial cdf at `n = 100000`, failed at 100 iterations. The `10^8` cap
 /// bounds the work for absurd parameters (`a = b = 1e25` errs after it); it is
-/// about 30 times the iterations a Binomial cdf at `n = 1e18` needs. Every input that
+/// far above the worst iterations-to-limit ratio (0.79) seen over the swept
+/// Student-t (`ν` up to `1e8`) and Binomial domains. Every input that
 /// converged within 100 iterations exits at the same iteration with the same
 /// result. Past iteration 100 a `NaN` running product, which no later step can
-/// clear, returns the non-convergence error at once rather than spinning to
-/// the limit.
+/// clear, returns a distinct `NaN` error at once rather than spinning to the
+/// limit. Convergence is not accuracy: for very large `a`, `b` the `lgamma`
+/// prefactor cancels and the result loses all precision (#1468).
 ///
 /// # Errors
 ///
@@ -156,7 +158,7 @@ fn beta_continued_fraction(a: Real, b: Real, x: Real) -> QlResult<Real> {
             return Ok(result);
         }
         if iter > MIN_ITERATIONS && result.is_nan() {
-            break;
+            fail!("incomplete_beta continued fraction produced NaN (a={a}, b={b})");
         }
     }
     fail!("incomplete_beta continued fraction did not converge (a={a}, b={b})");

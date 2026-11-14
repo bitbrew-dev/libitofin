@@ -98,10 +98,12 @@ fn binomial_cdf_is_total_and_monotone_across_the_failing_band() {
 
 #[test]
 fn incomplete_beta_errs_at_the_iteration_cap() {
-    assert!(incomplete_beta(1e25, 1e25, 0.5).is_err());
+    let err = incomplete_beta(1e25, 1e25, 0.5).unwrap_err().to_string();
+    assert!(err.contains("did not converge"), "{err}");
 }
 
 #[test]
 fn incomplete_beta_errs_on_a_nan_continued_fraction() {
-    assert!(incomplete_beta(1e300, 1e300, 0.5).is_err());
+    let err = incomplete_beta(1e300, 1e300, 0.5).unwrap_err().to_string();
+    assert!(err.contains("produced NaN"), "{err}");
 }

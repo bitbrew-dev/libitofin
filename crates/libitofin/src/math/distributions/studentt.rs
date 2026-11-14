@@ -80,8 +80,9 @@ impl Cdf for StudentT {
         //   a = ν/2 >= 0.5,  b = 0.5,  z = ν/(ν + x²) in [0, 1],
         // and the z = 0 (x = ±∞) and z = 1 (x = 0) endpoints short-circuit in
         // incomplete_beta before its continued fraction runs. Its iteration
-        // limit grows like sqrt(ν), so it converges on this domain (#1463,
-        // tests/incomplete_beta_large_a.rs); a failure is a defect in the
+        // limit grows like sqrt(ν), so it converges on every swept input of
+        // this domain (#1463, tests/incomplete_beta_large_a.rs; empirical, not
+        // a proof); a failure is a defect in the
         // special function, not a caller-recoverable condition, so we assert
         // rather than propagate.
         let tail = 0.5
