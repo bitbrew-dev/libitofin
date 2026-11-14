@@ -364,8 +364,9 @@ mod tests {
     /// `shortratemodels.cpp`
     /// `testExtendedCoxIngersollRossUpdatesWhenTermStructureRelinks` (:82): a
     /// relink of the model's curve handle notifies the model's observers. The
-    /// relinked curve also moves the repriced bond, so `phi_` was regenerated
-    /// against the new curve.
+    /// observer `Flag` is what proves the fix: `phi` reads the handle live, so
+    /// the repriced bond would move after a relink even without the
+    /// registration, and that check only guards against a stale curve.
     #[test]
     fn the_model_is_notified_when_its_curve_relinks() {
         let today = Date::new(19, Month::May, 2026);
