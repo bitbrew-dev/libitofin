@@ -75,19 +75,28 @@ impl Cdf for StudentT {
             return Real::NAN;
         }
         let nu = self.degrees_of_freedom;
-        let z = nu / (nu + x * x);
-        // For any valid StudentT the incomplete-beta arguments are restricted to
-        //   a = ν/2 >= 0.5,  b = 0.5,  z = ν/(ν + x²) in [0, 1],
-        // and the z = 0 (x = ±∞) and z = 1 (x = 0) endpoints short-circuit in
-        // incomplete_beta before its continued fraction runs. Its iteration
-        // limit grows like sqrt(ν), so it converges on every swept input of
-        // this domain (#1463, tests/incomplete_beta_large_a.rs; empirical, not
-        // a proof); a failure is a defect in the
-        // special function, not a caller-recoverable condition, so we assert
-        // rather than propagate.
-        let tail = 0.5
-            * incomplete_beta(0.5 * nu, 0.5, z)
-                .expect("incomplete beta must converge for valid Student-t parameters");
+        let x2 = x * x;
+        let y = x2 / (nu + x2);
+        // Near the centre, where y = x²/(ν + x²) satisfies y·(ν+5) < 3, the
+        // forward I_z(ν/2, 1/2) with z = ν/(ν + x²) rounds towards 1 and
+        // cancels, so the half-mass I_y(1/2, ν/2) is evaluated directly (#1461,
+        // a divergence from QuantLib's single forward form). The switch is
+        // incomplete_beta's own crossover for I_y(1/2, ν/2); y is NaN when x²
+        // overflows (|x| = ∞ included) and falls to the forward form. Either
+        // way the arguments are a, b in {1/2, ν/2} with ν/2 > 0 and an argument
+        // in [0, 1], and the 0 and 1 endpoints short-circuit in incomplete_beta
+        // before its continued fraction runs. Its iteration limit grows like
+        // sqrt(ν), so it converges on every swept input of this domain (#1463,
+        // tests/incomplete_beta_large_a.rs; empirical, not a proof); a failure
+        // is a defect in the special function, not a caller-recoverable
+        // condition, so we assert rather than propagate.
+        const CONVERGES: &str = "incomplete beta must converge for valid Student-t parameters";
+        if y * (nu + 5.0) < 3.0 {
+            let half = 0.5 * incomplete_beta(0.5, 0.5 * nu, y).expect(CONVERGES);
+            return if x <= 0.0 { 0.5 - half } else { 0.5 + half };
+        }
+        let z = nu / (nu + x2);
+        let tail = 0.5 * incomplete_beta(0.5 * nu, 0.5, z).expect(CONVERGES);
         if x <= 0.0 { tail } else { 1.0 - tail }
     }
 
