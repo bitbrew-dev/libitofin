@@ -17,6 +17,7 @@ use crate::types::Real;
 
 const ACCURACY: Real = 1e-16;
 const MIN_ITERATIONS: u32 = 100;
+const MAX_ITERATIONS: u32 = 100_000_000;
 
 /// The complete beta function `B(z, w) = Γ(z)·Γ(w) / Γ(z+w)`.
 ///
@@ -42,13 +43,16 @@ pub fn beta_function(z: Real, w: Real) -> QlResult<Real> {
 ///
 /// `a` and `b` must be strictly positive and `x` must lie in `[0, 1]`.
 ///
-/// The continued fraction runs up to `max(100, ceil(10·sqrt(max(a, b))))`
-/// iterations, where QuantLib's `incompleteBetaFunction` (`beta.hpp`) stops at
-/// 100 and throws. Near the branch crossover the fraction needs a number of
-/// iterations growing like `sqrt(max(a, b))`, and its `1e-16` accuracy is
-/// below half an ulp of 1, so it stops only on an exactly unit step: the
-/// Student-t cdf at `ν = 1000` and `ν = 10000` near `t = -1.73`, and the
-/// Binomial cdf at `n = 100000`, failed at 100 iterations. Every input that
+/// The continued fraction runs up to
+/// `min(max(100, ceil(10·sqrt(max(a, b)))), 10^8)` iterations, where
+/// QuantLib's `incompleteBetaFunction` (`beta.hpp`) stops at 100 and throws.
+/// Near the branch crossover the fraction needs a number of iterations
+/// growing like `sqrt(max(a, b))`, and its `1e-16` accuracy is below half an
+/// ulp of 1, so it stops only on an exactly unit step: isolated inputs of the
+/// Student-t cdf at `ν = 1000` and `ν = 10000` near `t = -1.73`, and of the
+/// Binomial cdf at `n = 100000`, failed at 100 iterations. The `10^8` cap
+/// bounds the work for absurd parameters (`a = b = 1e25` errs after it); it is
+/// about 30 times the iterations a Binomial cdf at `n = 1e18` needs. Every input that
 /// converged within 100 iterations exits at the same iteration with the same
 /// result. Past iteration 100 a `NaN` running product, which no later step can
 /// clear, returns the non-convergence error at once rather than spinning to
@@ -114,7 +118,9 @@ fn beta_continued_fraction(a: Real, b: Real, x: Real) -> QlResult<Real> {
     }
     d = 1.0 / d;
     let mut result = d;
-    let max_iterations = MIN_ITERATIONS.max((10.0 * a.max(b).sqrt()).ceil() as u32);
+    let max_iterations = MIN_ITERATIONS
+        .max((10.0 * a.max(b).sqrt()).ceil() as u32)
+        .min(MAX_ITERATIONS);
 
     for iter in 1..=max_iterations {
         let m = iter as Real;

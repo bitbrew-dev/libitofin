@@ -104,13 +104,17 @@ oversight) and is documented at the point of divergence in the source.
   continued fraction at 100 iterations with a `1e-16` accuracy, which is below
   half an ulp of 1, so it exits only on an exactly unit step. Near the branch
   crossover the fraction needs a number of iterations growing like
-  `sqrt(max(a, b))`, so QuantLib throws "a or b too big" for the Student-t cdf
-  at `ν = 1000` and `10000` near `t = -1.73`, and for the Binomial cdf at
-  `n = 100000`. Here the limit is `max(100, ceil(10·sqrt(max(a, b))))`, at the
-  same accuracy: every input that converges within 100 iterations exits at the
-  same iteration with the same result, and the inputs QuantLib rejects return
-  values matching mpmath (`math/beta.rs`, #1463). This keeps the Student-t and
-  Binomial cdfs, which are infallible, from panicking.
+  `sqrt(max(a, b))`, so QuantLib throws "a or b too big" at isolated inputs of
+  the Student-t cdf at `ν = 1000` and `10000` near `t = -1.73`, and of the
+  Binomial cdf at `n = 100000`. Here the limit is
+  `min(max(100, ceil(10·sqrt(max(a, b)))), 10^8)`, at the same accuracy: every
+  input that converges within 100 iterations exits at the same iteration with
+  the same result, and the inputs QuantLib rejects return values matching
+  mpmath (`math/beta.rs`, #1463). This keeps the Student-t and Binomial cdfs,
+  which are infallible, from panicking. The `10^8` cap, about 30 times what a
+  Binomial cdf at `n = 1e18` needs, bounds the work for absurd parameters,
+  which return `Err`; past iteration 100 a `NaN` running product returns `Err`
+  at once.
 
 ## Cash flows (EPIC-7)
 
