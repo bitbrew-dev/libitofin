@@ -307,6 +307,7 @@ impl YearOnYearInflationSwap {
     ///
     /// As [`Swap::leg_npv`].
     pub fn leg_npv(&mut self, j: usize) -> QlResult<Real> {
+        crate::require!(j < self.swap.number_of_legs(), "leg #{j} doesn't exist!");
         self.calculate()?;
         self.swap.leg_npv(j)
     }
@@ -319,6 +320,7 @@ impl YearOnYearInflationSwap {
     ///
     /// As [`Swap::leg_bps`].
     pub fn leg_bps(&mut self, j: usize) -> QlResult<Real> {
+        crate::require!(j < self.swap.number_of_legs(), "leg #{j} doesn't exist!");
         self.calculate()?;
         self.swap.leg_bps(j)
     }
@@ -554,6 +556,43 @@ mod tests {
             an_index(&settings),
             settings,
         )
+    }
+
+    /// As C++ `Swap::legBPS` / `legNPV` (`swap.hpp:82-93`), an out-of-range
+    /// leg is rejected before any pricing, so with no engine set the error is
+    /// the leg check, not the missing engine.
+    #[test]
+    fn an_out_of_range_leg_is_rejected_before_pricing() {
+        let settings = settings_today();
+        let schedule = MakeSchedule::new()
+            .from(today())
+            .to(maturity())
+            .with_tenor(Period::new(1, TimeUnit::Years))
+            .with_convention(BusinessDayConvention::Unadjusted)
+            .with_calendar(uk())
+            .backwards()
+            .build();
+        let mut swap = YearOnYearInflationSwap::new(
+            SwapType::Payer,
+            1_000_000.0,
+            schedule.clone(),
+            0.03,
+            day_counter(),
+            schedule,
+            an_index(&settings),
+            lag(),
+            CpiInterpolationType::Flat,
+            0.0,
+            day_counter(),
+            uk(),
+            BusinessDayConvention::ModifiedFollowing,
+            Shared::clone(&settings),
+        )
+        .expect("both legs are fully specified");
+        for err in [swap.leg_bps(2).unwrap_err(), swap.leg_npv(2).unwrap_err()] {
+            let message = err.to_string();
+            assert!(message.contains("leg #2 doesn't exist"), "{message}");
+        }
     }
 
     fn a_swap_over(
