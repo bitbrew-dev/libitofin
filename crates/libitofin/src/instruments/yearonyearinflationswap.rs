@@ -186,6 +186,14 @@ impl YearOnYearInflationSwap {
     }
 
     /// The embedded base, mutably (its on-demand-pricing accessors).
+    ///
+    /// Its pricing accessors (`npv`, `leg_npv`, `leg_bps`, `start_discounts`,
+    /// `end_discounts`, `npv_date_discount`) calculate the base alone, which
+    /// marks the shared results calculated without recovering this swap's fair
+    /// values: a later [`fair_rate`](Self::fair_rate) or
+    /// [`fair_spread`](Self::fair_spread) then fails or answers the values of
+    /// an older calculation. Read legs through [`leg_npv`](Self::leg_npv) and
+    /// [`leg_bps`](Self::leg_bps) instead (#1456).
     pub fn swap_mut(&mut self) -> &mut Swap {
         &mut self.swap
     }
@@ -289,6 +297,30 @@ impl YearOnYearInflationSwap {
     pub fn fixed_leg_npv(&mut self) -> QlResult<Real> {
         self.calculate()?;
         self.swap.leg_npv(0)
+    }
+
+    /// The `j`-th leg's NPV (the inherited C++ `Swap::legNPV`), priced on
+    /// demand through this instrument, as
+    /// [`fixed_leg_npv`](Self::fixed_leg_npv) is.
+    ///
+    /// # Errors
+    ///
+    /// As [`Swap::leg_npv`].
+    pub fn leg_npv(&mut self, j: usize) -> QlResult<Real> {
+        self.calculate()?;
+        self.swap.leg_npv(j)
+    }
+
+    /// The `j`-th leg's BPS (the inherited C++ `Swap::legBPS`), priced on
+    /// demand through this instrument, as
+    /// [`fixed_leg_npv`](Self::fixed_leg_npv) is.
+    ///
+    /// # Errors
+    ///
+    /// As [`Swap::leg_bps`].
+    pub fn leg_bps(&mut self, j: usize) -> QlResult<Real> {
+        self.calculate()?;
+        self.swap.leg_bps(j)
     }
 
     /// The year-on-year leg's NPV (`yoyLegNPV()`), priced on demand.
@@ -395,7 +427,7 @@ mod tests {
 
     use super::*;
     use crate::currency::Currency;
-    use crate::handle::Handle;
+    use crate::handle::{Handle, RelinkableHandle};
     use crate::indexes::Region;
     use crate::indexes::index::Index;
     use crate::math::interpolations::linear::Linear;
@@ -451,18 +483,28 @@ mod tests {
     /// is beyond the publication horizon, so every coupon forecasts and every
     /// forecast answers the same rate.
     fn an_index(settings: &Shared<Settings<Date>>) -> Shared<YoYInflationIndex> {
-        let curve = shared(
+        an_index_on(settings, Handle::new(a_curve(CURVE_RATE)))
+    }
+
+    fn a_curve(rate: Rate) -> Shared<dyn YoYInflationTermStructure> {
+        shared(
             YoYInflationCurve::new(
                 today(),
                 vec![Date::new(1, July, 2007), Date::new(1, July, 2015)],
-                vec![CURVE_RATE, CURVE_RATE],
+                vec![rate, rate],
                 Frequency::Monthly,
                 Actual360::new(),
                 Linear,
                 None,
             )
             .expect("a well-formed year-on-year curve"),
-        );
+        )
+    }
+
+    fn an_index_on(
+        settings: &Shared<Settings<Date>>,
+        curve: Handle<dyn YoYInflationTermStructure>,
+    ) -> Shared<YoYInflationIndex> {
         shared(
             YoYInflationIndex::new(
                 "YY_RPI".into(),
@@ -473,7 +515,7 @@ mod tests {
                 Currency::gbp(),
                 Shared::clone(settings),
             )
-            .with_term_structure(Handle::new(curve as Shared<dyn YoYInflationTermStructure>)),
+            .with_term_structure(curve),
         )
     }
 
@@ -505,6 +547,22 @@ mod tests {
 
     fn a_swap_on(swap_type: SwapType, nominal: Real, fixed_rate: Rate) -> YearOnYearInflationSwap {
         let settings = settings_today();
+        a_swap_over(
+            swap_type,
+            nominal,
+            fixed_rate,
+            an_index(&settings),
+            settings,
+        )
+    }
+
+    fn a_swap_over(
+        swap_type: SwapType,
+        nominal: Real,
+        fixed_rate: Rate,
+        index: Shared<YoYInflationIndex>,
+        settings: Shared<Settings<Date>>,
+    ) -> YearOnYearInflationSwap {
         let schedule = MakeSchedule::new()
             .from(today())
             .to(maturity())
@@ -520,7 +578,7 @@ mod tests {
             fixed_rate,
             day_counter(),
             schedule,
-            an_index(&settings),
+            index,
             lag(),
             CpiInterpolationType::Flat,
             0.0,
@@ -673,13 +731,15 @@ mod tests {
     /// `nominalTermStructure()`: the outcome only needs both leg BPS to be zero,
     /// which a zero nominal gives on any curve. The fallback is skipped
     /// (`yearonyearinflationswap.cpp:188,193`) and both accessors fail. The
-    /// fair values are read before the leg BPS, which compute only the inner
-    /// `Swap` (#1456); do not reorder.
+    /// leg BPS are read first, so the fair values fail because the fallback was
+    /// skipped and not because a leg accessor left them unrecovered (#1456).
     #[test]
     fn a_zero_nominal_swap_has_no_fair_values() {
         let mut swap = a_swap_on(SwapType::Payer, 0.0, CURVE_RATE);
 
         assert!(!swap.is_expired().unwrap());
+        assert_eq!(swap.leg_bps(0).unwrap(), 0.0);
+        assert_eq!(swap.leg_bps(1).unwrap(), 0.0);
         assert_eq!(
             swap.fair_rate().unwrap_err().message(),
             "result not available"
@@ -688,7 +748,65 @@ mod tests {
             swap.fair_spread().unwrap_err().message(),
             "result not available"
         );
-        assert_eq!(swap.swap_mut().leg_bps(0).unwrap(), 0.0);
-        assert_eq!(swap.swap_mut().leg_bps(1).unwrap(), 0.0);
+    }
+
+    /// Both fair values, then each leg's BPS and NPV.
+    fn readings(swap: &mut YearOnYearInflationSwap) -> [Real; 6] {
+        [
+            swap.fair_rate().unwrap(),
+            swap.fair_spread().unwrap(),
+            swap.leg_bps(0).unwrap(),
+            swap.leg_npv(0).unwrap(),
+            swap.leg_bps(1).unwrap(),
+            swap.leg_npv(1).unwrap(),
+        ]
+    }
+
+    /// Reading any leg accessor first leaves every fair value and leg value
+    /// as a fresh swap read fair values first gives (#1456).
+    #[test]
+    fn a_leg_read_first_gives_the_natural_order_numbers() {
+        let expected = readings(&mut a_swap(SwapType::Payer, OFF_MARKET_RATE));
+        let firsts: [fn(&mut YearOnYearInflationSwap) -> QlResult<Real>; 6] = [
+            |swap| swap.leg_bps(0),
+            |swap| swap.leg_npv(0),
+            |swap| swap.leg_bps(1),
+            |swap| swap.leg_npv(1),
+            YearOnYearInflationSwap::fixed_leg_npv,
+            YearOnYearInflationSwap::yoy_leg_npv,
+        ];
+        for first in firsts {
+            let mut swap = a_swap(SwapType::Payer, OFF_MARKET_RATE);
+            first(&mut swap).unwrap();
+            assert_eq!(readings(&mut swap), expected);
+        }
+    }
+
+    /// A leg read after the year-on-year curve is relinked refreshes the fair
+    /// values too: they move, and match a fresh swap on the new curve, instead
+    /// of staying at the old curve's numbers (#1456).
+    #[test]
+    fn a_leg_read_after_a_relink_refreshes_the_fair_values() {
+        let settings = settings_today();
+        let curve = RelinkableHandle::new(a_curve(CURVE_RATE));
+        let index = an_index_on(&settings, curve.handle());
+        let swap_on = |index: &Shared<YoYInflationIndex>| {
+            a_swap_over(
+                SwapType::Payer,
+                NOMINAL,
+                OFF_MARKET_RATE,
+                Shared::clone(index),
+                Shared::clone(&settings),
+            )
+        };
+        let mut swap = swap_on(&index);
+        let before = readings(&mut swap);
+
+        curve.link_to(a_curve(0.035));
+        swap.leg_bps(1).unwrap();
+        let after = readings(&mut swap);
+
+        assert_ne!(after[0], before[0]);
+        assert_eq!(after, readings(&mut swap_on(&index)));
     }
 }

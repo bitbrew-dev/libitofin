@@ -393,10 +393,16 @@ impl FixedVsFloatingSwap {
 
     /// The fixed leg's BPS (`fixedLegBPS()`).
     ///
+    /// Like the other three leg accessors, it drives this instrument's own
+    /// calculation before reading the shared base, so the fair values are
+    /// recovered from the same results whichever accessor is read first
+    /// (#1456).
+    ///
     /// # Errors
     ///
     /// The engine must have provided the value.
     pub fn fixed_leg_bps(&mut self) -> QlResult<Real> {
+        self.calculate()?;
         self.swap.leg_bps(0)
     }
 
@@ -406,6 +412,7 @@ impl FixedVsFloatingSwap {
     ///
     /// The engine must have provided the value.
     pub fn fixed_leg_npv(&mut self) -> QlResult<Real> {
+        self.calculate()?;
         self.swap.leg_npv(0)
     }
 
@@ -415,6 +422,7 @@ impl FixedVsFloatingSwap {
     ///
     /// The engine must have provided the value.
     pub fn floating_leg_bps(&mut self) -> QlResult<Real> {
+        self.calculate()?;
         self.swap.leg_bps(1)
     }
 
@@ -424,6 +432,7 @@ impl FixedVsFloatingSwap {
     ///
     /// The engine must have provided the value.
     pub fn floating_leg_npv(&mut self) -> QlResult<Real> {
+        self.calculate()?;
         self.swap.leg_npv(1)
     }
 
@@ -867,6 +876,40 @@ mod tests {
         assert_eq!(swap.floating_leg_npv().unwrap(), 100.0);
         assert_eq!(swap.fixed_leg_bps().unwrap(), -1.0);
         assert_eq!(swap.floating_leg_bps().unwrap(), 2.0);
+    }
+
+    /// Whichever leg accessor is read first, it drives this instrument's own
+    /// calculation: the fair values are recovered from the same results, and a
+    /// new engine read through the leg accessor refreshes them instead of
+    /// leaving the old ones (#1456; C++ `Instrument::calculate` dispatches to
+    /// the most-derived `fetchResults`).
+    #[test]
+    fn a_leg_read_first_still_recovers_fresh_fair_values() {
+        let firsts: [fn(&mut FixedVsFloatingSwap) -> QlResult<Real>; 4] = [
+            FixedVsFloatingSwap::fixed_leg_bps,
+            FixedVsFloatingSwap::fixed_leg_npv,
+            FixedVsFloatingSwap::floating_leg_bps,
+            FixedVsFloatingSwap::floating_leg_npv,
+        ];
+        for first in firsts {
+            let mut swap = make_swap(SwapType::Receiver, vec![100.0]);
+            for (npv, bps) in [(2.0, [-1.0, 2.0]), (3.0, [-1.5, 2.5])] {
+                swap.base_mut().set_pricing_engine(swap_engine(
+                    npv,
+                    vec![-98.0, 100.0],
+                    bps.to_vec(),
+                ));
+                first(&mut swap).unwrap();
+                assert_eq!(
+                    swap.fair_rate().unwrap(),
+                    0.05 - npv / (bps[0] / BASIS_POINT)
+                );
+                assert_eq!(
+                    swap.fair_spread().unwrap(),
+                    0.001 - npv / (bps[1] / BASIS_POINT)
+                );
+            }
+        }
     }
 
     /// An expired swap reports no fair values (the C++ `setupExpired` nulls
