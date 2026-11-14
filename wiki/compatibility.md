@@ -117,6 +117,17 @@ oversight) and is documented at the point of divergence in the source.
   iteration 100 a `NaN` running product returns a distinct `Err` at once.
   Convergence is not accuracy: for very large parameters the `lgamma`
   prefactor cancels (#1468).
+- **The Student-t cdf evaluates the centre directly.** QuantLib's
+  `CumulativeStudentDistribution` (`studenttdistribution.cpp`) always forms
+  `I_x(ν/2, 1/2) / 2` with `x = ν/(ν + t²)`; near `t = 0` that `x` rounds
+  towards 1 and the result cancels (`ν = 1000, t = ±1e-7` gives exactly `0.5`).
+  Here, when `y = t²/(ν + t²)` satisfies `y·(ν + 5) < 3` (the incomplete beta's
+  own crossover for `I_y(1/2, ν/2)`), the cdf is `1/2 ∓ I_y(1/2, ν/2) / 2`,
+  within `1e-14` relative of mpmath at `t = ±1e-3, ±1e-5, ±1e-7` for
+  `ν = 3, 30, 1000` (`math/distributions/studentt.rs`, #1461). Elsewhere, and
+  where `t²` overflows, the forward form is unchanged. Boost's own switch,
+  `ν > 2t²` with the complemented `ibetac`, is not used: without a complemented
+  incomplete beta it cancels the large-`ν` tails to 0.
 
 ## Cash flows (EPIC-7)
 
