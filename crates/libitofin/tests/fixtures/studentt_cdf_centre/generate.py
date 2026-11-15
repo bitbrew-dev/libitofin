@@ -20,7 +20,17 @@ mpmath.mp.dps = 50
 
 NUS = [3.0, 30.0, 1000.0]
 TS = [1e-3, 1e-5, 1e-7]
-TAIL = [(1000.0, -10.0)]
+TAIL = [(1000.0, -10.0), (3.0, -3.0), (30.0, -3.0)]
+
+
+def switch_ts(nu):
+    import math
+    t_star = math.sqrt(3.0 * nu / (nu + 2.0))
+    out = []
+    for s in (-1.0, 1.0):
+        for t in (math.nextafter(t_star, 0.0), math.nextafter(t_star, math.inf)):
+            out.append(s * t)
+    return out
 
 
 def cdf(nu, t):
@@ -38,9 +48,11 @@ def cdf(nu, t):
 
 def main():
     print(f"# mpmath {mpmath.__version__}, dps {mpmath.mp.dps}; kind,nu,t,P")
-    rows = [(nu, s * t) for nu in NUS for t in TS for s in (-1.0, 1.0)] + TAIL
-    for nu, t in rows:
-        print(f"cdf,{nu!r},{t!r},{mpmath.nstr(cdf(nu, t), 17, strip_zeros=False)}")
+    rows = [("centre", nu, s * t) for nu in NUS for t in TS for s in (-1.0, 1.0)]
+    rows += [("switch", nu, t) for nu in NUS for t in switch_ts(nu)]
+    rows += [("tail", nu, t) for nu, t in TAIL]
+    for kind, nu, t in rows:
+        print(f"{kind},{nu!r},{t!r},{mpmath.nstr(cdf(nu, t), 17, strip_zeros=False)}")
 
 
 if __name__ == "__main__":
