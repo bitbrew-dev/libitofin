@@ -110,7 +110,10 @@ impl CumulativeBinomialDistribution {
         // its only residual failure is non-convergence, which its sqrt-scaled
         // iteration limit avoids on every swept input (#1463,
         // tests/incomplete_beta_large_a.rs; empirical, not a proof),
-        // asserted away per the eval error-boundary convention.
+        // asserted away per the eval error-boundary convention. Its Boost
+        // power-terms prefactor holds at large n (#1468), but near the mean
+        // the continued fraction cancels for n beyond about 1e11 (5e-10
+        // relative at n = 1e12, 5e-7 at 1e16; deferred, see math/beta.rs).
         1.0 - incomplete_beta((k + 1) as Real, (self.n - k) as Real, self.p)
             .expect("incomplete_beta converges for valid binomial CDF parameters")
     }
@@ -178,8 +181,8 @@ mod tests {
 
     #[test]
     fn cdf_equals_cumulative_pmf() {
-        // The CDF goes through incomplete_beta (Lanczos log_gamma inside, ~1e-12
-        // accurate), while the running PMF sum uses exact log-factorials, so they
+        // The CDF goes through incomplete_beta (Boost Lanczos power terms
+        // inside), while the running PMF sum uses exact log-factorials, so they
         // agree only to incomplete_beta's tolerance, not to ~1e-15.
         for &(p, n) in &[(0.2, 10u64), (0.5, 15), (0.75, 20)] {
             let pmf = BinomialDistribution::new(p, n).unwrap();
