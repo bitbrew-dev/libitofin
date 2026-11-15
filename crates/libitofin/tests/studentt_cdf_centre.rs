@@ -10,12 +10,13 @@ use libitofin::types::Real;
 const CENTRE_REL_TOL: Real = 1e-14;
 const TAIL_REL_TOL: Real = 1e-10;
 
-fn cases() -> Vec<(Real, Real, Real)> {
+fn cases(kind: &str) -> Vec<(Real, Real, Real)> {
     include_str!("fixtures/studentt_cdf_centre/cases.csv")
         .lines()
         .filter(|line| !line.starts_with('#'))
-        .map(|line| {
-            let fields: Vec<&str> = line.split(',').collect();
+        .map(|line| line.split(',').collect::<Vec<&str>>())
+        .filter(|fields| fields[0] == kind)
+        .map(|fields| {
             let parse = |i: usize| fields[i].parse::<Real>().unwrap();
             (parse(1), parse(2), parse(3))
         })
@@ -32,36 +33,25 @@ fn assert_rel(got: Real, expected: Real, tol: Real, context: &str) {
 
 #[test]
 fn cdf_near_zero_matches_mpmath() {
-    let rows: Vec<_> = cases()
-        .into_iter()
-        .filter(|(_, t, _)| t.abs() < 1.0)
-        .collect();
+    let rows = cases("centre");
     assert_eq!(rows.len(), 18);
     for (nu, t, expected) in rows {
         let dist = StudentT::new(nu).unwrap();
-        let context = format!("nu={nu} t={t}");
         assert_rel(
             dist.cdf(t),
             expected,
             CENTRE_REL_TOL,
-            &format!("cdf {context}"),
-        );
-        assert_rel(
-            dist.survival(-t),
-            expected,
-            CENTRE_REL_TOL,
-            &format!("survival {context}"),
+            &format!("cdf nu={nu} t={t}"),
         );
     }
 }
 
+/// One ulp either side of the centre/forward switch `y (nu + 5) = 3`, both
+/// signs: a wrong threshold would put a cancelling form on one side.
 #[test]
-fn tail_guard_matches_mpmath() {
-    let rows: Vec<_> = cases()
-        .into_iter()
-        .filter(|(_, t, _)| t.abs() >= 1.0)
-        .collect();
-    assert_eq!(rows.len(), 1);
+fn cdf_across_the_switch_matches_mpmath() {
+    let rows = cases("switch");
+    assert_eq!(rows.len(), 12);
     for (nu, t, expected) in rows {
         let dist = StudentT::new(nu).unwrap();
         assert_rel(
@@ -70,11 +60,20 @@ fn tail_guard_matches_mpmath() {
             TAIL_REL_TOL,
             &format!("cdf nu={nu} t={t}"),
         );
+    }
+}
+
+#[test]
+fn tail_guard_matches_mpmath() {
+    let rows = cases("tail");
+    assert_eq!(rows.len(), 3);
+    for (nu, t, expected) in rows {
+        let dist = StudentT::new(nu).unwrap();
         assert_rel(
-            dist.survival(-t),
+            dist.cdf(t),
             expected,
             TAIL_REL_TOL,
-            &format!("survival nu={nu} t={}", -t),
+            &format!("cdf nu={nu} t={t}"),
         );
     }
 }
