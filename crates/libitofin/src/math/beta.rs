@@ -116,7 +116,7 @@ pub fn beta_function(z: Real, w: Real) -> QlResult<Real> {
 /// cancels for `a`, `b` beyond about `1e11`, so the Binomial cdf at
 /// `n = 1e12, 1e14, 1e16` is within `5e-10`, `1e-8` and `5e-7` of mpmath
 /// there, not `1e-10`; a large-parameter asymptotic expansion is tracked
-/// separately.
+/// as #1475.
 ///
 /// # Errors
 ///
@@ -148,6 +148,10 @@ pub fn incomplete_beta(a: Real, b: Real, x: Real) -> QlResult<Real> {
 ///
 /// As [`incomplete_beta`], and also if `y` is outside `[0, 1]`.
 pub(crate) fn incomplete_beta_xy(a: Real, b: Real, x: Real, y: Real) -> QlResult<Real> {
+    debug_assert!(
+        !(x.is_finite() && y.is_finite()) || (x + y - 1.0).abs() <= 8.0 * Real::EPSILON,
+        "incomplete_beta_xy needs y = 1 - x (x = {x}, y = {y})"
+    );
     // `is_finite()` is required: a bare `<= 0.0` lets NaN and +infinity through
     // (all NaN comparisons are false, and +infinity is not <= 0), but
     // QuantLib's QL_REQUIRE(a > 0) rejects them
