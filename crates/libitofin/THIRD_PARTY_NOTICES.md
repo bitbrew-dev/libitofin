@@ -156,7 +156,7 @@ immutable reference-date and whole-year-tenor contracts, plus mixed native-oracl
 provenance, are documented in `docs/docs/cpi-capfloor-bindings.md` at repository
 level and `sdk/go/testdata/cpi-capfloor-native.provenance.json`.
 
-## Boost.Math Student-t quantile
+## Boost.Math Student-t quantile and incomplete beta
 
 The Student-t quantile estimate in `src/math/distributions/studentt/inverse.rs`
 (closed forms for 1, 2 and 4 degrees of freedom, the 6 degrees of freedom
@@ -164,6 +164,10 @@ iteration, Hill's method and Shaw's tail and body series) is adapted from
 Boost.Math 1.92, `boost/math/special_functions/detail/t_distribution_inv.hpp`,
 which QuantLib v1.44's `InverseCumulativeStudent` calls.
 Copyright John Maddock 2007; Copyright Paul A. Bristow 2007.
+
+The `lanczos13m53` Lanczos sum in `src/math/beta.rs` is adapted from
+Boost.Math 1.92, `boost/math/special_functions/lanczos.hpp`.
+Copyright John Maddock 2006.
 Distributed under the Boost Software License, Version 1.0:
 
 ```text

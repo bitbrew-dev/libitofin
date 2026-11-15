@@ -9,6 +9,11 @@
 //! accuracy (`1e-16`) but its iteration limit grows with the parameters (see
 //! [`incomplete_beta`]), where QuantLib's fixed limit of 100 throws for large
 //! `a` or `b` (#1463).
+//!
+//! The Lanczos sum is adapted from Boost.Math 1.92
+//! `boost/math/special_functions/lanczos.hpp` (`lanczos13m53`, Copyright John
+//! Maddock 2006, distributed under the Boost Software License 1.0, see
+//! `THIRD_PARTY_NOTICES.md`).
 
 use crate::errors::QlResult;
 use crate::fail;
@@ -18,6 +23,42 @@ use crate::types::Real;
 const ACCURACY: Real = 1e-16;
 const MIN_ITERATIONS: u32 = 100;
 const MAX_ITERATIONS: u32 = 100_000_000;
+
+/// Numerator coefficients of `lanczos13m53::lanczos_sum_expG_scaled`.
+#[allow(clippy::excessive_precision)]
+const LANCZOS_NUM: [Real; 13] = [
+    56906521.91347156388090791033559122686859,
+    103794043.1163445451906271053616070238554,
+    86363131.28813859145546927288977868422342,
+    43338889.32467613834773723740590533316085,
+    14605578.08768506808414169982791359218571,
+    3481712.15498064590882071018964774556468,
+    601859.6171681098786670226533699352302507,
+    75999.29304014542649875303443598909137092,
+    6955.999602515376140356310115515198987526,
+    449.9445569063168119446858607650988409623,
+    19.51992788247617482847860966235652136208,
+    0.5098416655656676188125178644804694509993,
+    0.006061842346248906525783753964555936883222,
+];
+
+/// Denominator coefficients of `lanczos13m53` (the expansion of
+/// `z (z + 1) ... (z + 11)`).
+const LANCZOS_DENOM: [Real; 13] = [
+    0.0,
+    39916800.0,
+    120543840.0,
+    150917976.0,
+    105258076.0,
+    45995730.0,
+    13339535.0,
+    2637558.0,
+    357423.0,
+    32670.0,
+    1925.0,
+    66.0,
+    1.0,
+];
 
 /// The complete beta function `B(z, w) = Γ(z)·Γ(w) / Γ(z+w)`.
 ///
@@ -105,6 +146,33 @@ pub fn incomplete_beta(a: Real, b: Real, x: Real) -> QlResult<Real> {
     } else {
         Ok(1.0 - prefactor * beta_continued_fraction(b, a, 1.0 - x)? / b)
     }
+}
+
+/// Boost's `lanczos13m53::lanczos_sum_expG_scaled(z)`, the Lanczos sum
+/// `Γ(z) e^(z - 1/2) / (z + g - 1/2)^(z - 1/2)` for `z > 0`.
+///
+/// Evaluates the rational function as Boost's `tools::evaluate_rational`: in
+/// `z` for `z <= 1`, and in `1/z` above, so large `z` cannot overflow.
+#[cfg_attr(not(test), expect(dead_code))]
+fn lanczos_sum_exp_g_scaled(z: Real) -> Real {
+    let (mut num, mut denom);
+    if z <= 1.0 {
+        num = LANCZOS_NUM[12];
+        denom = LANCZOS_DENOM[12];
+        for i in (0..12).rev() {
+            num = num * z + LANCZOS_NUM[i];
+            denom = denom * z + LANCZOS_DENOM[i];
+        }
+    } else {
+        let z = 1.0 / z;
+        num = LANCZOS_NUM[0];
+        denom = LANCZOS_DENOM[0];
+        for i in 1..13 {
+            num = num * z + LANCZOS_NUM[i];
+            denom = denom * z + LANCZOS_DENOM[i];
+        }
+    }
+    num / denom
 }
 
 /// Lentz's continued-fraction evaluation for [`incomplete_beta`] (NR `betacf`).
@@ -215,6 +283,30 @@ mod tests {
             assert!(
                 (lhs - rhs).abs() < TOL,
                 "symmetry failed at a={a}, b={b}, x={x}"
+            );
+        }
+    }
+
+    /// mpmath at 60 digits (`tests/fixtures/ibeta_power_terms/generate.py`),
+    /// on both arms of the rational evaluation (`z <= 1` and `z > 1`).
+    #[test]
+    fn lanczos_sum_exp_g_scaled_matches_mpmath() {
+        let rows: Vec<(Real, Real)> =
+            include_str!("../../tests/fixtures/ibeta_power_terms/cases.csv")
+                .lines()
+                .filter_map(|line| line.strip_prefix("lanczos,"))
+                .map(|line| {
+                    let (z, value) = line.split_once(',').unwrap();
+                    (z.parse().unwrap(), value.parse().unwrap())
+                })
+                .collect();
+        assert_eq!(rows.len(), 14);
+        for (z, expected) in rows {
+            let got = lanczos_sum_exp_g_scaled(z);
+            let rel = ((got - expected) / expected).abs();
+            assert!(
+                rel <= 1e-15,
+                "z={z}: got {got}, expected {expected}, rel {rel:e}"
             );
         }
     }
