@@ -122,7 +122,7 @@ oversight) and is documented at the point of divergence in the source.
   still cancels beyond about `1e11`: the Binomial cdf at `p = 1/2` and
   `n = 1e12, 1e14, 1e16` is within `5e-10`, `1e-8`, `5e-7` of mpmath (Boost
   1.92 itself is within `7e-11`, `3e-10`, `8e-9`), deferred to a
-  large-parameter asymptotic.
+  large-parameter asymptotic (#1475).
 - **The Student-t cdf evaluates the centre directly.** QuantLib's
   `CumulativeStudentDistribution` (`studenttdistribution.cpp`) always forms
   `I_x(ν/2, 1/2) / 2` with `x = ν/(ν + t²)`; near `t = 0` that `x` rounds
@@ -140,7 +140,7 @@ oversight) and is documented at the point of divergence in the source.
   (`y` or `z`) to the incomplete beta rather than `1 - z` (#1468). Deferred:
   for `|t| > √3` the forward form's continued fraction cancels at large `ν`
   (about `1e-10` relative at `ν = 1e7`, `3e-5` at `1e12`, `0.1` at `2^52`),
-  where Boost uses `beta_small_b_large_a_series`.
+  where Boost uses `beta_small_b_large_a_series` (#1476).
 
 ## Cash flows (EPIC-7)
 

@@ -105,7 +105,7 @@ impl Cdf for StudentT {
         // form's continued fraction cancels at z near 1 for large ν (|x| > √3:
         // about 1e-10 relative at ν = 1e7, 3e-5 at 1e12, 0.1 at 2^52), where
         // Boost switches to beta_small_b_large_a_series; that port is tracked
-        // separately.
+        // as #1476.
         const CONVERGES: &str = "incomplete beta must converge for valid Student-t parameters";
         if y * (nu + 5.0) < 3.0 {
             let half = 0.5 * incomplete_beta_xy(0.5, 0.5 * nu, y, z).expect(CONVERGES);
