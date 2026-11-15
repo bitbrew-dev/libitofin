@@ -134,6 +134,13 @@ oversight) and is documented at the point of divergence in the source.
   where `t²` overflows, the forward form is unchanged. Boost's own switch,
   `ν > 2t²` with the complemented `ibetac`, is not used: without a complemented
   incomplete beta it cancels the large-`ν` tails to 0.
+- **The Student-t cdf is the normal cdf beyond `ν = 1/eps`.** QuantLib always
+  takes the incomplete beta; here, as in Boost's `students_t` cdf, `ν > 2^52`
+  returns the normal cdf, and below it both forms pass their exact complement
+  (`y` or `z`) to the incomplete beta rather than `1 - z` (#1468). Deferred:
+  for `|t| > √3` the forward form's continued fraction cancels at large `ν`
+  (about `1e-10` relative at `ν = 1e7`, `3e-5` at `1e12`, `0.1` at `2^52`),
+  where Boost uses `beta_small_b_large_a_series`.
 
 ## Cash flows (EPIC-7)
 

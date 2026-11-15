@@ -140,7 +140,8 @@ pub fn incomplete_beta(a: Real, b: Real, x: Real) -> QlResult<Real> {
 /// [`incomplete_beta`] with the complement `y = 1 - x` supplied by the
 /// caller, who can often form it exactly where `1 - x` would round (the
 /// Student-t cdf near `x = 1`). `y` enters the power terms and the swapped
-/// continued fraction; the branch test stays on `x`, as in
+/// continued fraction, and `y = 0` (not `x = 1`, which a rounded `x` can
+/// reach first) is the upper endpoint; the branch test stays on `x`, as in
 /// [`incomplete_beta`].
 ///
 /// # Errors
@@ -166,7 +167,7 @@ pub(crate) fn incomplete_beta_xy(a: Real, b: Real, x: Real, y: Real) -> QlResult
     if x == 0.0 {
         return Ok(0.0);
     }
-    if x == 1.0 || y == 0.0 {
+    if y == 0.0 {
         return Ok(1.0);
     }
 
