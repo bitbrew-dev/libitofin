@@ -165,9 +165,10 @@ Boost.Math 1.92, `boost/math/special_functions/detail/t_distribution_inv.hpp`,
 which QuantLib v1.44's `InverseCumulativeStudent` calls.
 Copyright John Maddock 2007; Copyright Paul A. Bristow 2007.
 
-The `lanczos13m53` Lanczos sum in `src/math/beta.rs` is adapted from
-Boost.Math 1.92, `boost/math/special_functions/lanczos.hpp`.
-Copyright John Maddock 2006.
+The incomplete beta power terms (`ibeta_power_terms`) and the `lanczos13m53`
+Lanczos sum in `src/math/beta.rs` are adapted from Boost.Math 1.92,
+`boost/math/special_functions/beta.hpp` and `lanczos.hpp`.
+Copyright John Maddock 2006; Copyright Matt Borland 2024.
 Distributed under the Boost Software License, Version 1.0:
 
 ```text
