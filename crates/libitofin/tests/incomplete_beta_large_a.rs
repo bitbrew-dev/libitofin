@@ -11,11 +11,9 @@ use libitofin::types::Real;
 
 const REL_TOL: Real = 1e-10;
 
-/// The Binomial prefactor sums `log_gamma` terms near `1e6` that cancel to
-/// order one, so each ulp of them is about `1e-10` relative: over every `k` in
-/// `[45000, 55000)` at `n = 100000` (converging ones included) the error peaks
-/// at `2.1e-10`, independently of the iteration limit.
-const BINOMIAL_REL_TOL: Real = 1e-9;
+/// The `log_gamma` prefactor cancelled to `2.1e-10` here; Boost's power
+/// terms (#1468) bring the rows within `7e-14`.
+const BINOMIAL_REL_TOL: Real = 1e-12;
 
 fn cases(kind: &str) -> Vec<(Real, Real, Real)> {
     include_str!("fixtures/incomplete_beta_large_a/cases.csv")

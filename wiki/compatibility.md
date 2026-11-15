@@ -115,8 +115,14 @@ oversight) and is documented at the point of divergence in the source.
   iterations-to-limit ratio seen over the swept Student-t and Binomial
   domains, bounds the work for absurd parameters, which return `Err`; past
   iteration 100 a `NaN` running product returns a distinct `Err` at once.
-  Convergence is not accuracy: for very large parameters the `lgamma`
-  prefactor cancels (#1468).
+  QuantLib's prefactor `exp(lgamma(a+b) - lgamma(a) - lgamma(b) + a ln x +
+  b ln(1-x))` cancels for very large parameters (the Binomial cdf at
+  `n = 1e16` returned only 0 or 1); here it is Boost's `ibeta_power_terms`
+  with the `lanczos13m53` sums (#1468). Near the saddle the continued fraction
+  still cancels beyond about `1e11`: the Binomial cdf at `p = 1/2` and
+  `n = 1e12, 1e14, 1e16` is within `5e-10`, `1e-8`, `5e-7` of mpmath (Boost
+  1.92 itself is within `7e-11`, `3e-10`, `8e-9`), deferred to a
+  large-parameter asymptotic.
 - **The Student-t cdf evaluates the centre directly.** QuantLib's
   `CumulativeStudentDistribution` (`studenttdistribution.cpp`) always forms
   `I_x(ν/2, 1/2) / 2` with `x = ν/(ν + t²)`; near `t = 0` that `x` rounds

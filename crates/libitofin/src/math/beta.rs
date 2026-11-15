@@ -2,18 +2,23 @@
 //!
 //! Port of `ql/math/beta.{hpp,cpp}`: the complete [`beta_function`] and the
 //! regularized [`incomplete_beta`] (the CDF of the Beta distribution), the
-//! latter via the Numerical Recipes continued-fraction expansion with a
-//! [`log_gamma`] prefactor. Needed for the Student-t CDF.
+//! latter via the Numerical Recipes continued-fraction expansion. Needed for
+//! the Student-t CDF.
 //!
-//! Divergence from QuantLib: the continued fraction keeps QuantLib's
+//! Divergences from QuantLib: the continued fraction keeps QuantLib's
 //! accuracy (`1e-16`) but its iteration limit grows with the parameters (see
 //! [`incomplete_beta`]), where QuantLib's fixed limit of 100 throws for large
-//! `a` or `b` (#1463).
+//! `a` or `b` (#1463); and its prefactor `x^a y^b / B(a, b)` is Boost's
+//! `ibeta_power_terms`, where QuantLib's `exp(lgamma)` form cancels for large
+//! `a`, `b` (#1468).
 //!
-//! The Lanczos sum is adapted from Boost.Math 1.92
-//! `boost/math/special_functions/lanczos.hpp` (`lanczos13m53`, Copyright John
-//! Maddock 2006, distributed under the Boost Software License 1.0, see
-//! `THIRD_PARTY_NOTICES.md`).
+//! The power terms and the Lanczos sum are adapted from Boost.Math 1.92
+//! `boost/math/special_functions/beta.hpp` (Copyright John Maddock 2006,
+//! Copyright Matt Borland 2024) and `lanczos.hpp` (`lanczos13m53`, Copyright
+//! John Maddock 2006), distributed under the Boost Software License 1.0, see
+//! `THIRD_PARTY_NOTICES.md`.
+
+use std::f64::consts::E;
 
 use crate::errors::QlResult;
 use crate::fail;
@@ -23,6 +28,10 @@ use crate::types::Real;
 const ACCURACY: Real = 1e-16;
 const MIN_ITERATIONS: u32 = 100;
 const MAX_ITERATIONS: u32 = 100_000_000;
+
+/// The `g` of Boost's `lanczos13m53` approximation (`lanczos.hpp`).
+#[allow(clippy::excessive_precision)]
+const LANCZOS_G: Real = 6.024680040776729583740234375;
 
 /// Numerator coefficients of `lanczos13m53::lanczos_sum_expG_scaled`.
 #[allow(clippy::excessive_precision)]
@@ -98,8 +107,16 @@ pub fn beta_function(z: Real, w: Real) -> QlResult<Real> {
 /// converged within 100 iterations exits at the same iteration with the same
 /// result. Past iteration 100 a `NaN` running product, which no later step can
 /// clear, returns a distinct `NaN` error at once rather than spinning to the
-/// limit. Convergence is not accuracy: for very large `a`, `b` the `lgamma`
-/// prefactor cancels and the result loses all precision (#1468).
+/// limit.
+///
+/// The prefactor is Boost's `ibeta_power_terms` (#1468), where QuantLib's
+/// `exp(lgamma(a+b) - lgamma(a) - lgamma(b) + a ln x + b ln(1-x))` cancels
+/// for large `a`, `b` (the Binomial cdf at `n = 1e16` returned only 0 or 1).
+/// Deferred: near the saddle `x = a/(a+b)` the continued fraction itself
+/// cancels for `a`, `b` beyond about `1e11`, so the Binomial cdf at
+/// `n = 1e12, 1e14, 1e16` is within `5e-10`, `1e-8` and `5e-7` of mpmath
+/// there, not `1e-10`; a large-parameter asymptotic expansion is tracked
+/// separately.
 ///
 /// # Errors
 ///
@@ -117,6 +134,19 @@ pub fn beta_function(z: Real, w: Real) -> QlResult<Real> {
 /// # Ok::<(), libitofin::errors::QlError>(())
 /// ```
 pub fn incomplete_beta(a: Real, b: Real, x: Real) -> QlResult<Real> {
+    incomplete_beta_xy(a, b, x, 1.0 - x)
+}
+
+/// [`incomplete_beta`] with the complement `y = 1 - x` supplied by the
+/// caller, who can often form it exactly where `1 - x` would round (the
+/// Student-t cdf near `x = 1`). `y` enters the power terms and the swapped
+/// continued fraction; the branch test stays on `x`, as in
+/// [`incomplete_beta`].
+///
+/// # Errors
+///
+/// As [`incomplete_beta`], and also if `y` is outside `[0, 1]`.
+pub(crate) fn incomplete_beta_xy(a: Real, b: Real, x: Real, y: Real) -> QlResult<Real> {
     // `is_finite()` is required: a bare `<= 0.0` lets NaN and +infinity through
     // (all NaN comparisons are false, and +infinity is not <= 0), but
     // QuantLib's QL_REQUIRE(a > 0) rejects them
@@ -130,21 +160,23 @@ pub fn incomplete_beta(a: Real, b: Real, x: Real) -> QlResult<Real> {
     if !(0.0..=1.0).contains(&x) {
         fail!("incomplete_beta requires x in [0, 1], got x={x}");
     }
+    if !(0.0..=1.0).contains(&y) {
+        fail!("incomplete_beta requires y in [0, 1], got y={y}");
+    }
     if x == 0.0 {
         return Ok(0.0);
     }
-    if x == 1.0 {
+    if x == 1.0 || y == 0.0 {
         return Ok(1.0);
     }
 
-    let prefactor =
-        (log_gamma(a + b)? - log_gamma(a)? - log_gamma(b)? + a * x.ln() + b * (1.0 - x).ln()).exp();
+    let prefactor = ibeta_power_terms(a, b, x, y);
 
     // use the expansion that converges fastest for this x
     if x < (a + 1.0) / (a + b + 2.0) {
         Ok(prefactor * beta_continued_fraction(a, b, x)? / a)
     } else {
-        Ok(1.0 - prefactor * beta_continued_fraction(b, a, 1.0 - x)? / b)
+        Ok(1.0 - prefactor * beta_continued_fraction(b, a, y)? / b)
     }
 }
 
@@ -153,7 +185,6 @@ pub fn incomplete_beta(a: Real, b: Real, x: Real) -> QlResult<Real> {
 ///
 /// Evaluates the rational function as Boost's `tools::evaluate_rational`: in
 /// `z` for `z <= 1`, and in `1/z` above, so large `z` cannot overflow.
-#[cfg_attr(not(test), expect(dead_code))]
 fn lanczos_sum_exp_g_scaled(z: Real) -> Real {
     let (mut num, mut denom);
     if z <= 1.0 {
@@ -173,6 +204,109 @@ fn lanczos_sum_exp_g_scaled(z: Real) -> Real {
         }
     }
     num / denom
+}
+
+/// Boost's normalised `ibeta_power_terms(a, b, x, y)`: the leading factor
+/// `x^a y^b / B(a, b)` of the incomplete beta, from `y` as given (not
+/// `1 - x`), for `a, b > 0` and `x, y` in `(0, 1)`.
+///
+/// The Lanczos sums carry `Γ(a + b) / (Γ(a) Γ(b))` and the bases of the two
+/// powers are rescaled by `(a + b + g - 1/2) / (a + g - 1/2)` and its `b`
+/// analogue, so where a base is near 1 the power is formed as
+/// `exp(a log1p(l))` rather than from cancelling logarithms. Boost raises an
+/// underflow or overflow error where the product is `0` or `∞`; the product
+/// is returned instead, so a deep tail evaluates to `0`.
+fn ibeta_power_terms(a: Real, b: Real, x: Real, y: Real) -> Real {
+    let c = a + b;
+    let gh = LANCZOS_G - 0.5;
+    let agh = a + gh;
+    let bgh = b + gh;
+    let cgh = c + gh;
+    let log_max = Real::MAX.ln();
+    let log_min = Real::MIN_POSITIVE.ln();
+    let mut result = if a < Real::MIN_POSITIVE || b < Real::MIN_POSITIVE {
+        0.0
+    } else {
+        lanczos_sum_exp_g_scaled(c) / (lanczos_sum_exp_g_scaled(a) * lanczos_sum_exp_g_scaled(b))
+    };
+    result *= (bgh / E).sqrt();
+    result *= (agh / cgh).sqrt();
+
+    let l1 = ((x * b - y * a) - y * gh) / agh;
+    let l2 = ((y * a - x * b) - x * gh) / bgh;
+    if l1.abs().min(l2.abs()) < 0.2 {
+        if l1 * l2 > 0.0 || a.min(b) < 1.0 {
+            result *= if l1.abs() < 0.1 {
+                (a * l1.ln_1p()).exp()
+            } else {
+                (x * cgh / agh).powf(a)
+            };
+            result *= if l2.abs() < 0.1 {
+                (b * l2.ln_1p()).exp()
+            } else {
+                (y * cgh / bgh).powf(b)
+            };
+        } else if l1.abs().max(l2.abs()) < 0.5 {
+            let ratio = b / a;
+            if (a < b && ratio * l2 < 0.1) || (a >= b && l1 / ratio > 0.1) {
+                let l3 = (ratio * l2.ln_1p()).exp_m1();
+                result *= (a * (l1 + l3 + l3 * l1).ln_1p()).exp();
+            } else {
+                let l3 = (l1.ln_1p() / ratio).exp_m1();
+                result *= (b * (l2 + l3 + l3 * l2).ln_1p()).exp();
+            }
+        } else {
+            let l = if l1.abs() < l2.abs() {
+                a * l1.ln_1p() + b * (y * cgh / bgh).ln()
+            } else {
+                b * l2.ln_1p() + a * (x * cgh / agh).ln()
+            };
+            result = if l <= log_min || l >= log_max {
+                (l + result.ln()).exp()
+            } else {
+                result * l.exp()
+            };
+        }
+    } else {
+        let b1 = x * cgh / agh;
+        let b2 = y * cgh / bgh;
+        let l1 = a * b1.ln();
+        let l2 = b * b2.ln();
+        if l1 >= log_max || l1 <= log_min || l2 >= log_max || l2 <= log_min {
+            if a < b {
+                let p1 = b2.powf(b / a);
+                let l3 = if b1 != 0.0 && p1 != 0.0 {
+                    a * (b1.ln() + p1.ln())
+                } else {
+                    Real::MAX
+                };
+                result = if l3 < log_max && l3 > log_min {
+                    result * (p1 * b1).powf(a)
+                } else {
+                    (l2 + l1 + result.ln()).exp()
+                };
+            } else {
+                let p1 = if b1 < 1.0 && b < 1.0 && Real::MAX * b < a {
+                    0.0
+                } else {
+                    b1.powf(a / b)
+                };
+                let l3 = if p1 != 0.0 && b2 != 0.0 {
+                    (p1.ln() + b2.ln()) * b
+                } else {
+                    Real::MAX
+                };
+                if l3 < log_max && l3 > log_min {
+                    result *= (p1 * b2).powf(b);
+                } else if result != 0.0 {
+                    result = (l2 + l1 + result.ln()).exp();
+                }
+            }
+        } else {
+            result *= b1.powf(a) * b2.powf(b);
+        }
+    }
+    result
 }
 
 /// Lentz's continued-fraction evaluation for [`incomplete_beta`] (NR `betacf`).
