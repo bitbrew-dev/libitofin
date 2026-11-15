@@ -2012,7 +2012,10 @@ mod tests {
     /// The moving 6x4 ATM surface (C++'s floating-reference
     /// `SwaptionVolatilityMatrix`), so the cube grid and the ATM grid share the
     /// moving reference date.
-    fn common_atm_matrix(settings: &Shared<Settings<Date>>) -> Shared<SwaptionVolatilityMatrix> {
+    fn common_atm_matrix(
+        settings: &Shared<Settings<Date>>,
+        volatility_type: VolatilityType,
+    ) -> Shared<SwaptionVolatilityMatrix> {
         let vols = atm_vols();
         let vols_handle: Vec<Vec<Handle<dyn Quote>>> = (0..6)
             .map(|i| {
@@ -2029,7 +2032,7 @@ mod tests {
                 atm_swap_tenors(),
                 vols_handle,
                 Actual365Fixed::new(),
-                VolatilityType::ShiftedLognormal,
+                volatility_type,
                 Vec::new(),
                 Shared::clone(settings),
             )
@@ -2106,7 +2109,13 @@ mod tests {
         is_atm_calibrated: bool,
         backward_flat: bool,
     ) -> SabrSwaptionVolatilityCube {
-        build_common_sabr_cube_with_quote(settings, is_atm_calibrated, backward_flat, None)
+        build_common_sabr_cube_with_quote(
+            settings,
+            is_atm_calibrated,
+            backward_flat,
+            None,
+            VolatilityType::ShiftedLognormal,
+        )
     }
 
     fn build_common_sabr_cube_with_quote(
@@ -2114,6 +2123,7 @@ mod tests {
         is_atm_calibrated: bool,
         backward_flat: bool,
         live_spread: Option<&Shared<SimpleQuote>>,
+        volatility_type: VolatilityType,
     ) -> SabrSwaptionVolatilityCube {
         let euribor6m = shared(Euribor::six_months(
             flat_curve(0.05),
@@ -2122,7 +2132,8 @@ mod tests {
         let long = isda_swap_index(&euribor6m, settings, Period::new(2, TimeUnit::Years));
         let short = isda_swap_index(&euribor6m, settings, Period::new(1, TimeUnit::Years));
         let atm =
-            Handle::new(common_atm_matrix(settings) as Shared<dyn SwaptionVolatilityStructure>);
+            Handle::new(common_atm_matrix(settings, volatility_type)
+                as Shared<dyn SwaptionVolatilityStructure>);
 
         let spreads = common_vol_spreads();
         let vol_spreads: Vec<Vec<Handle<dyn Quote>>> = (0..9)
@@ -2213,6 +2224,34 @@ mod tests {
         assert!(
             worst_spread < 12.0e-4,
             "recovery of smile vol spreads worst error {worst_spread} (tolerance 12e-4)"
+        );
+    }
+
+    /// Port of `testSabrNormalVolatility` (`swaptionvolatilitycube.cpp:149-170`):
+    /// the CommonVars cube built on a Normal ATM matrix holding the lognormal
+    /// matrix's numbers, ATM-calibrated, recovers those ATM vols to 7e-4. Until
+    /// #1417 the dense Normal cube keeps the moneyness strike map, not the
+    /// `hpp:976` strike-spread one, so this pins the pre-`d0a3885a3` behaviour.
+    #[test]
+    fn testsabrnormalvolatility_recovers_atm_vols() {
+        let settings = settings_today();
+        let cube =
+            build_common_sabr_cube_with_quote(&settings, true, false, None, VolatilityType::Normal);
+        assert_eq!(cube.volatility_type(), VolatilityType::Normal);
+        let lognormal = common_atm_matrix(&settings, VolatilityType::ShiftedLognormal);
+
+        let mut worst_atm = 0.0_f64;
+        for &o in atm_option_tenors().iter() {
+            for &s in atm_swap_tenors().iter() {
+                let strike = cube.cube().atm_strike_from_tenor(o, s).unwrap();
+                let exp = lognormal.volatility_tenors(o, s, strike, true).unwrap();
+                let act = cube.volatility_tenors(o, s, strike, true).unwrap();
+                worst_atm = worst_atm.max((exp - act).abs());
+            }
+        }
+        assert!(
+            worst_atm < 7.0e-4,
+            "recovery of atm vols worst error {worst_atm} (tolerance 7e-4)"
         );
     }
 
@@ -2340,6 +2379,7 @@ mod tests {
                     is_atm_calibrated,
                     backward_flat,
                     Some(&quote),
+                    VolatilityType::ShiftedLognormal,
                 )
             };
             let value = |cube: &SabrSwaptionVolatilityCube| {
