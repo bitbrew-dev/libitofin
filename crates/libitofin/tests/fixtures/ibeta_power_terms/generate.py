@@ -16,6 +16,14 @@ inputs are binary64 values printed exactly.
   The route matches exact integer binomial sums at `n = 100000` to `1e-35`
   and the complement integral `1 - I_p(k + 1, n - k)` at `n = 1e16` to
   `1e-32`.
+- `student,nu,t,P`: the Student-t cdf, by tanh-sinh quadrature of the density
+  (with `loggamma`) from `-inf` to `t`; it matches mpmath's `betainc` at
+  `nu = 1e6, 1e12, 1e16` to `1e-33`. `nu` runs to either side of `2^52`
+  (`1/eps`), where the cdf switches to the normal. `|t| < sqrt(3)` takes
+  the centre form and `|t| > sqrt(3)` the forward one; the forward rows stop
+  at `nu = 1e6` below `2^52`, where the continued fraction still cancels
+  (a documented deferral in `studentt.rs`).
+- `student_quantile,nu,p,x`: the Student-t quantile, by bisection on that cdf.
 
 Regenerate from the repository root:
 
@@ -55,6 +63,36 @@ def ibeta_quad(a, b, x):
     return mpmath.quad(density, [lo + (x - lo) * i / pieces for i in range(pieces + 1)])
 
 
+STUDENT_NU = [1e6, 1e12, 4503599627370496.0, 4503599627370498.0, 1e16]
+STUDENT_CENTRE_T = [-1.73, -0.5, 0.5, 1.73]
+STUDENT_FORWARD_NU = [1e6, 4503599627370498.0, 1e16]
+STUDENT_FORWARD_T = [-5.0, -2.5, -1.75, 2.5]
+STUDENT_QUANTILE = [(1e9, 0.05), (1e12, 0.05)]
+
+
+def student_cdf(nu, t):
+    nu, t = mpmath.mpf(nu), mpmath.mpf(t)
+    ln_c = mpmath.loggamma((nu + 1) / 2) - mpmath.loggamma(nu / 2) - mpmath.log(nu * mpmath.pi) / 2
+
+    def density(s):
+        return mpmath.exp(ln_c - (nu + 1) / 2 * mpmath.log1p(s * s / nu))
+
+    lower = min(t, -t)
+    tail = mpmath.quad(density, [-mpmath.inf, lower - 40, lower - 10, lower - 3, lower])
+    return tail if t <= 0 else 1 - tail
+
+
+def student_quantile(nu, p):
+    lo, hi = mpmath.mpf(-3), mpmath.mpf(0)
+    for _ in range(200):
+        mid = (lo + hi) / 2
+        if student_cdf(nu, mid) < p:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
 def binomial_ks(n, p):
     mean, sd = n * mpmath.mpf(p), mpmath.sqrt(n * mpmath.mpf(p) * (1 - mpmath.mpf(p)))
     return [int(mpmath.nint(mean + j * sd / 2)) for j in range(-2, 3)]
@@ -72,6 +110,12 @@ def main():
         for k in binomial_ks(n, p):
             value = ibeta_quad(float(n - k), float(k + 1), 1 - p)
             print(f"binomial,{n},{p!r},{k},{fmt(value)}")
+    for nu in STUDENT_NU:
+        ts = STUDENT_CENTRE_T + (STUDENT_FORWARD_T if nu in STUDENT_FORWARD_NU else [])
+        for t in ts:
+            print(f"student,{nu!r},{t!r},{fmt(student_cdf(nu, t))}")
+    for nu, p in STUDENT_QUANTILE:
+        print(f"student_quantile,{nu!r},{p!r},{fmt(student_quantile(nu, mpmath.mpf(p)))}")
 
 
 if __name__ == "__main__":

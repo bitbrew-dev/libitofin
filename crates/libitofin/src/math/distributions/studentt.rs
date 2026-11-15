@@ -3,7 +3,7 @@
 //! Port of `ql/math/distributions/studenttdistribution.{hpp,cpp}`: the standard
 //! (location 0, scale 1) Student-t [`StudentT`] with `ν` degrees of freedom,
 //! providing the density, the cumulative distribution via the regularized
-//! [`incomplete_beta`] function, and the inverse via Boost's Student-t quantile
+//! incomplete beta function, and the inverse via Boost's Student-t quantile
 //! that QuantLib v1.44's `InverseCumulativeStudent` calls.
 
 use std::f64::consts::PI;
@@ -11,7 +11,8 @@ use std::f64::consts::PI;
 use super::{Cdf, Density, Probability, Quantile, Support};
 use crate::errors::QlResult;
 use crate::fail;
-use crate::math::beta::incomplete_beta;
+use crate::math::beta::incomplete_beta_xy;
+use crate::math::distributions::normal::CumulativeNormalDistribution;
 use crate::math::gammafunction::log_gamma;
 use crate::require;
 use crate::types::Real;
@@ -75,28 +76,42 @@ impl Cdf for StudentT {
             return Real::NAN;
         }
         let nu = self.degrees_of_freedom;
+        // Beyond 1/eps degrees of freedom the Student-t is the normal to
+        // within an ulp, and Boost's cdf returns the normal cdf there (#1468, a
+        // divergence: QuantLib always takes the incomplete beta). The 1e20 of
+        // the quantile is only where its normal estimate is taken as exact.
+        if nu > 1.0 / Real::EPSILON {
+            return CumulativeNormalDistribution::standard().value(x);
+        }
         let x2 = x * x;
-        let y = x2 / (nu + x2);
+        let total = nu + x2;
+        let y = if total.is_finite() { x2 / total } else { 1.0 };
+        let z = nu / total;
         // Near the centre, where y = x²/(ν + x²) satisfies y·(ν+5) < 3, the
         // forward I_z(ν/2, 1/2) with z = ν/(ν + x²) rounds towards 1 and
         // cancels, so the half-mass I_y(1/2, ν/2) is evaluated directly (#1461,
         // a divergence from QuantLib's single forward form). The switch is
-        // incomplete_beta's own crossover for I_y(1/2, ν/2); y is NaN when x²
+        // incomplete_beta's own crossover for I_y(1/2, ν/2); y is 1 when ν + x²
         // overflows (|x| = ∞ included) and falls to the forward form. Either
         // way the arguments are a, b in {1/2, ν/2} with ν/2 > 0 and an argument
         // in [0, 1], and the 0 and 1 endpoints short-circuit in incomplete_beta
-        // before its continued fraction runs. Its iteration limit grows like
+        // before its continued fraction runs. Each form passes its exact
+        // complement (z for y, y for z), since 1 - z rounds away the tail for
+        // large ν (#1468). The incomplete beta's iteration limit grows like
         // sqrt(ν), so it converges on every swept input of this domain (#1463,
         // tests/incomplete_beta_large_a.rs; empirical, not a proof); a failure
         // is a defect in the special function, not a caller-recoverable
-        // condition, so we assert rather than propagate.
+        // condition, so we assert rather than propagate. Deferred: the forward
+        // form's continued fraction cancels at z near 1 for large ν (|x| > √3:
+        // about 1e-10 relative at ν = 1e7, 3e-5 at 1e12, 0.1 at 2^52), where
+        // Boost switches to beta_small_b_large_a_series; that port is tracked
+        // separately.
         const CONVERGES: &str = "incomplete beta must converge for valid Student-t parameters";
         if y * (nu + 5.0) < 3.0 {
-            let half = 0.5 * incomplete_beta(0.5, 0.5 * nu, y).expect(CONVERGES);
+            let half = 0.5 * incomplete_beta_xy(0.5, 0.5 * nu, y, z).expect(CONVERGES);
             return if x <= 0.0 { 0.5 - half } else { 0.5 + half };
         }
-        let z = nu / (nu + x2);
-        let tail = 0.5 * incomplete_beta(0.5 * nu, 0.5, z).expect(CONVERGES);
+        let tail = 0.5 * incomplete_beta_xy(0.5 * nu, 0.5, z, y).expect(CONVERGES);
         if x <= 0.0 { tail } else { 1.0 - tail }
     }
 
@@ -128,11 +143,11 @@ impl StudentT {
     /// `(0.5 - u) - I_y(1/2, ν/2) / 2`.
     /// Boost switches at `x < y` and evaluates the complement
     /// `f0 = 1 - I_y(1/2, ν/2)` to full precision inside its ibeta; this
-    /// [`incomplete_beta`] has no complemented entry point, so `p0 = f0/2 - u`
+    /// incomplete beta has no complemented entry point, so `p0 = f0/2 - u`
     /// is rearranged to avoid the subtraction and used only where `I_y` is
     /// small (Boost's switch would cancel in the large-`ν` tails, where
-    /// `t² < ν` but `I_y` is near `1`). The pdf stands in for Boost's ibeta
-    /// derivative.
+    /// `t² < ν` but `I_y` is near `1`). Each form passes its exact complement,
+    /// as the cdf does. The pdf stands in for Boost's ibeta derivative.
     ///
     /// The step ratio `p0 / pdf(t)` is formed in log space, so it stays
     /// defined where the density is subnormal (the deep tail); only Boost's
@@ -144,11 +159,15 @@ impl StudentT {
         if xb == 0.0 {
             return Ok(t);
         }
-        let y = t2 / (nu + t2);
-        let p0 = if y * (nu + 5.0) >= 3.0 {
-            0.5 * incomplete_beta(0.5 * nu, 0.5, xb)? - u
+        let y = if (nu + t2).is_finite() {
+            t2 / (nu + t2)
         } else {
-            (0.5 - u) - 0.5 * incomplete_beta(0.5, 0.5 * nu, y)?
+            1.0
+        };
+        let p0 = if y * (nu + 5.0) >= 3.0 {
+            0.5 * incomplete_beta_xy(0.5 * nu, 0.5, xb, y)? - u
+        } else {
+            (0.5 - u) - 0.5 * incomplete_beta_xy(0.5, 0.5 * nu, y, xb)?
         };
         let r = p0.signum() * (p0.abs().ln() - self.ln_pdf(t)).exp();
         let p2 = t * (nu + 1.0) / (t2 + nu);
