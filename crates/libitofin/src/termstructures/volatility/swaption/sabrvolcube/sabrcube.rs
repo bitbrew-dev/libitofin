@@ -129,6 +129,7 @@ pub struct SabrSwaptionVolatilityCube {
     parameters_guess_quotes: Vec<Vec<Handle<dyn Quote>>>,
     parameters_guess: RefCell<Cube>,
     market_vol_cube: RefCell<Cube>,
+    vol_cube_atm_calibrated: RefCell<Cube>,
     sparse_parameters: RefCell<Cube>,
     dense_parameters: RefCell<Cube>,
     is_parameter_fixed: [bool; N_SABR_PARAMS],
@@ -249,6 +250,7 @@ impl SabrSwaptionVolatilityCube {
         let parameters_guess_cube =
             build_guess_cube(&cube, &parameters_guess, backward_flat, n_options, n_swaps)?;
         let market_vol_cube = zero_cube(&cube, n_strikes, false)?;
+        let vol_cube_atm_calibrated = zero_cube(&cube, n_strikes, false)?;
         let sparse_parameters = zero_cube(&cube, N_SABR_PARAMS + N_METADATA_LAYERS, backward_flat)?;
         let dense_parameters = zero_cube(&cube, N_SABR_PARAMS + N_METADATA_LAYERS, backward_flat)?;
 
@@ -271,6 +273,7 @@ impl SabrSwaptionVolatilityCube {
             parameters_guess_quotes: parameters_guess,
             parameters_guess: RefCell::new(parameters_guess_cube),
             market_vol_cube: RefCell::new(market_vol_cube),
+            vol_cube_atm_calibrated: RefCell::new(vol_cube_atm_calibrated),
             sparse_parameters: RefCell::new(sparse_parameters),
             dense_parameters: RefCell::new(dense_parameters),
             is_parameter_fixed,
@@ -327,15 +330,16 @@ impl SabrSwaptionVolatilityCube {
         let market = self.build_market_vol_cube(n_options, n_swaps)?;
         let sparse = self.sabr_calibration(&market)?;
 
+        let mut vol_cube_atm_calibrated = self.build_market_vol_cube(n_options, n_swaps)?;
         if self.is_atm_calibrated {
             let sparse_smiles = self.create_sparse_smiles(&sparse)?;
-            let mut vol_cube_atm_calibrated = self.build_market_vol_cube(n_options, n_swaps)?;
             self.fill_volatility_cube(&mut vol_cube_atm_calibrated, &sparse, &sparse_smiles)?;
             *self.dense_parameters.borrow_mut() =
                 self.sabr_calibration(&vol_cube_atm_calibrated)?;
         }
 
         *self.market_vol_cube.borrow_mut() = market;
+        *self.vol_cube_atm_calibrated.borrow_mut() = vol_cube_atm_calibrated;
         *self.sparse_parameters.borrow_mut() = sparse;
         Ok(())
     }
@@ -831,6 +835,28 @@ impl SabrSwaptionVolatilityCube {
     ) -> QlResult<Vec<Real>> {
         self.calculate()?;
         self.dense_parameters
+            .borrow()
+            .value(option_time, swap_length)
+    }
+
+    /// The ATM-calibrated market vol cube at `(option_time, swap_length)`: one
+    /// vol per strike spread (`volCubeAtmCalibrated()`, hpp:1055-1058). It starts
+    /// as the market cube (ATM vol plus vol-spread quote at each sparse node,
+    /// hpp:409), so on a cube that is not `is_atm_calibrated` it equals the market
+    /// cube; when `is_atm_calibrated` it is widened over the ATM grid with the
+    /// interpolated spreads (`fillVolatilityCube`). At a grid node it returns that
+    /// node's vols exactly.
+    ///
+    /// # Errors
+    ///
+    /// Propagates the calibration (including the #586 shift deferral).
+    pub fn vol_cube_atm_calibrated_values(
+        &self,
+        option_time: Time,
+        swap_length: Time,
+    ) -> QlResult<Vec<Real>> {
+        self.calculate()?;
+        self.vol_cube_atm_calibrated
             .borrow()
             .value(option_time, swap_length)
     }
@@ -2253,6 +2279,47 @@ mod tests {
             worst_atm < 7.0e-4,
             "recovery of atm vols worst error {worst_atm} (tolerance 7e-4)"
         );
+    }
+
+    /// `volCubeAtmCalibrated()` (hpp:409, 1055-1058): at every sparse node it is
+    /// the market cube, ATM vol plus each vol-spread quote, on both a sparse-only
+    /// and an ATM-calibrated cube. Only the ATM-calibrated cube carries the
+    /// widened 5Y x 5Y node, so there the two differ.
+    #[test]
+    fn vol_cube_atm_calibrated_starts_as_the_market_cube() {
+        let settings = settings_today();
+        let sparse_only = build_common_sabr_cube(&settings, false, false);
+        let calibrated = build_common_sabr_cube(&settings, true, false);
+        let atm = sparse_only.cube().atm_vol().current_link().unwrap();
+        let spreads = common_vol_spreads();
+
+        for (n, (date, tenor, time, length)) in node_info(&sparse_only).into_iter().enumerate() {
+            let forward = sparse_only.cube().atm_strike(date, tenor).unwrap();
+            let atm_vol = atm.volatility(date, length, forward, false).unwrap();
+            let expected: Vec<Real> = spreads[n].iter().map(|s| atm_vol + s).collect();
+            for cube in [&sparse_only, &calibrated] {
+                assert_eq!(
+                    cube.vol_cube_atm_calibrated_values(time, length).unwrap(),
+                    expected
+                );
+            }
+        }
+
+        let option_time = sparse_only
+            .time_from_reference(
+                sparse_only
+                    .option_date_from_tenor(Period::new(5, TimeUnit::Years))
+                    .unwrap(),
+            )
+            .unwrap();
+        let swap_length = 5.0;
+        let interpolated = sparse_only
+            .vol_cube_atm_calibrated_values(option_time, swap_length)
+            .unwrap();
+        let widened = calibrated
+            .vol_cube_atm_calibrated_values(option_time, swap_length)
+            .unwrap();
+        assert!((interpolated[4] - widened[4]).abs() > 1.0e-6);
     }
 
     #[test]
