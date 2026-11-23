@@ -58,7 +58,7 @@ Rebuild the swap when replacing spot or contractual terms.
 
 ## Examples and oracle provenance
 
-- Python: `example/python/xccy_basis.py`.
+- Python: `crates/itofin-py/python/examples/xccy_basis.py`.
 - Go: `sdk/go/examples/xccy_basis/main.go`.
 - Focused fixtures reuse the tracked whole-class native oracle from
   `crates/libitofin/tests/fixtures/medium3_xccy_basis/`: actual compiled QuantLib

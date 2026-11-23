@@ -105,7 +105,7 @@ is approximately `0.04`, with approximately zero NPV at strike `0.04`.
     ```
 
     Tolerance mode replaces `samples=1023` with `tolerance=1e-5, max_samples=50000`.
-    [Complete Python example](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/mc_variance_swap.py).
+    [Complete Python example](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/mc_variance_swap.py).
 
 === "Go"
 

@@ -60,7 +60,7 @@ QuantLib parity. Existing core behavior, including errors, is retained.
 
 ## Examples
 
-Python: [cash digital example](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/cash_digital.py).
+Python: [cash digital example](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/cash_digital.py).
 Go: [cash digital example](https://github.com/bitbrew-dev/libitofin/blob/main/sdk/go/examples/cash_digital/main.go).
 
 Fixtures compare regular positive-volatility prices and Greeks to an independent

@@ -23,7 +23,7 @@ trimming the table would silently move it.
 
 Run it with:
 
-    python example/python/inflation_swap.py
+    python crates/itofin-py/python/examples/inflation_swap.py
 """
 
 # plugins
@@ -105,8 +105,18 @@ ZC_DATA = [
 # January of the year the curve's base period ends in. They are stationary, so
 # the lookup wrapping modulo twelve reuses them for every later year.
 SEASONALITY_FACTORS = [
-    1.003245, 1.000000, 0.999715, 1.000495, 1.000929, 0.998687,
-    0.995949, 0.994682, 0.995949, 1.000519, 1.003705, 1.004186,
+    1.003245,
+    1.000000,
+    0.999715,
+    1.000495,
+    1.000929,
+    0.998687,
+    0.995949,
+    0.994682,
+    0.995949,
+    1.000519,
+    1.003705,
+    1.004186,
 ]
 SEASONALITY_ANCHOR = Date(31, 1, 2007)
 SEASONALITY_PROBE = Date(1, 8, 2012)
@@ -119,6 +129,7 @@ def _fixing_date(i: int) -> Date:
 
 
 def build_index(settings: Settings) -> ZeroInflationIndex:
+    """Build a UK RPI zero-inflation index loaded with the monthly fixings."""
     index = ZeroInflationIndex.uk_rpi(settings)
     for i, fixing in enumerate(FIX_DATA):
         index.add_fixing(_fixing_date(i), fixing)
@@ -131,6 +142,7 @@ def nominal_curve() -> FlatForward:
 
 
 def build_helpers(settings, index):
+    """Build the zero-coupon inflation swap helpers that bootstrap the curve."""
     return [
         ZeroCouponInflationSwapHelper(
             SimpleQuote(rate / 100.0),
@@ -210,6 +222,7 @@ def apply_seasonality(settings, index, curve) -> None:
 
 
 def main() -> None:
+    """Bootstrap the UK zero-inflation curve and price a zero-coupon inflation swap."""
     # D5: one Settings threaded through index, helpers, swaps and engines.
     settings = Settings()
     settings.set_evaluation_date(TODAY)

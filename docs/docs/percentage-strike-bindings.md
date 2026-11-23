@@ -66,7 +66,7 @@ explicit Close. Python retains its unsendable native ownership model.
 
 ## Examples
 
-- Python: `example/python/percentage_strike.py`.
+- Python: `crates/itofin-py/python/examples/percentage_strike.py`.
 - Go: `sdk/go/examples/percentage_strike/main.go`.
 
 This slice is not a complete payoff-object family or CPI pricing implementation.

@@ -103,7 +103,7 @@ They inspect a bounded strip, not an asserted exact fair variance of `0.04`.
     print(swap.variance(), swap.npv(), len(swap.option_weights()))
     ```
 
-    [Complete Python example](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/variance_swap.py).
+    [Complete Python example](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/variance_swap.py).
 
 === "Go"
 

@@ -9,6 +9,7 @@ from itofin.time import Date, DayCounter
 
 
 def main():
+    """Price a percentage-strike call with the finite-difference engine."""
     reference = Date(15, 6, 2026)
     settings = Settings()
     settings.set_evaluation_date(reference)

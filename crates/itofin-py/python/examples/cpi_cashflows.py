@@ -1,4 +1,5 @@
 """Price a plain explicit-base CPI leg with an indexed terminal payment."""
+
 # itofin library
 from itofin import Settings
 from itofin.cashflows import CPILeg, npv
@@ -14,13 +15,24 @@ index.add_fixing(Date(1, 4, 2025), 100.8)
 day_counter = DayCounter.actual365_fixed()
 calendar = Calendar.null_calendar()
 schedule = Schedule(
-    Date(15, 1, 2025), Date(15, 7, 2025), Frequency.Semiannual,
-    calendar, BusinessDayConvention.Unadjusted,
+    Date(15, 1, 2025),
+    Date(15, 7, 2025),
+    Frequency.Semiannual,
+    calendar,
+    BusinessDayConvention.Unadjusted,
 )
 builder = CPILeg(
-    schedule, index, 100.0, Period(3, "Months"), [100000.0], [0.02],
-    day_counter, calendar, BusinessDayConvention.Unadjusted,
-    CpiInterpolationType.Flat, False,
+    schedule,
+    index,
+    100.0,
+    Period(3, "Months"),
+    [100000.0],
+    [0.02],
+    day_counter,
+    calendar,
+    BusinessDayConvention.Unadjusted,
+    CpiInterpolationType.Flat,
+    False,
 )
 leg = builder.build()
 discount = FlatForward(today, 0.04, day_counter)

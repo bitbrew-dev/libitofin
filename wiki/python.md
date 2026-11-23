@@ -85,10 +85,10 @@ print(f"{svol.volatility(Period(3, 'Years'), Period(3, 'Years'), 0.03):.4f}")  #
 
 ## More examples and reference
 
-- [Swaption example](../example/python/swaption.py) (requires current `main`): price vanilla payer and Eonia OIS swaptions, then reprice after a volatility update.
+- [Swaption example](../crates/itofin-py/python/examples/swaption.py) (requires current `main`): price vanilla payer and Eonia OIS swaptions, then reprice after a volatility update.
 
 - [Getting started](https://bitbrew-dev.github.io/libitofin/getting-started/): runnable Python, Rust, and Go examples.
-- [Python example sources](../example/python/): yield curves, swaps, Monte Carlo, credit, and inflation.
+- [Python example sources](../crates/itofin-py/python/examples/): yield curves, swaps, Monte Carlo, credit, and inflation.
 - [Python API reference](https://bitbrew-dev.github.io/libitofin/api/core/): module-by-module signatures and documentation.
 - [Python bindings source](../crates/itofin-py/): implementation and tests.
 
@@ -96,5 +96,5 @@ print(f"{svol.volatility(Period(3, 'Years'), Period(3, 'Years'), 0.03):.4f}")  #
 
 ## Global optimization examples
 
-- [Particle swarm](../example/python/particle_swarm.py): seeded signed-scalar minimization, with checked analytic value `-3`.
+- [Particle swarm](../crates/itofin-py/python/examples/particle_swarm.py): seeded signed-scalar minimization, with checked analytic value `-3`.
 - [Shared global-search contract](https://bitbrew-dev.github.io/libitofin/global-optimization/): DE/PSO controls, feasible calibration boxes, budgets and numerical limits.

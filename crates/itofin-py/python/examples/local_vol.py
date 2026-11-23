@@ -5,7 +5,7 @@ quote, so bumping the quote reprices the option.
 
 Run it with:
 
-    python example/python/local_vol.py
+    python crates/itofin-py/python/examples/local_vol.py
 """
 
 # standard library

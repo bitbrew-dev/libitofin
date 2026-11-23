@@ -63,7 +63,7 @@ links to the language guides and project documentation.
 | Python API reference | This site (see the **Python API** section) |
 | Rust API reference | [docs.rs/libitofin](https://docs.rs/libitofin) - see [Rust API](rust.md) |
 | Go SDK | [Installation, sessions, and examples](go.md), plus [API reference](https://pkg.go.dev/github.com/bitbrew-dev/libitofin/sdk/go) |
-| Worked examples | [`example/python`](https://github.com/bitbrew-dev/libitofin/tree/main/example/python), [`sdk/go/examples`](https://github.com/bitbrew-dev/libitofin/tree/main/sdk/go/examples), and [`crates/libitofin/examples`](https://github.com/bitbrew-dev/libitofin/tree/main/crates/libitofin/examples) |
+| Worked examples | [`crates/itofin-py/python/examples`](https://github.com/bitbrew-dev/libitofin/tree/main/crates/itofin-py/python/examples), [`sdk/go/examples`](https://github.com/bitbrew-dev/libitofin/tree/main/sdk/go/examples), and [`crates/libitofin/examples`](https://github.com/bitbrew-dev/libitofin/tree/main/crates/libitofin/examples) |
 
 ## Reviewed Rust additions
 

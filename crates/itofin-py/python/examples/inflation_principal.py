@@ -1,4 +1,5 @@
 """Compare fixed and live CPI denominators and value their one-flow legs."""
+
 # itofin library
 from itofin import Settings
 from itofin.cashflows import CPICashFlow, ZeroInflationCashFlow, npv

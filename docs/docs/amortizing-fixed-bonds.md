@@ -65,7 +65,7 @@ this factory does not repair or newly promise economic forward-quote units.
 
 ## Examples and oracle
 
-- Python: [`example/python/amortizing_fixed_bond.py`](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/amortizing_fixed_bond.py)
+- Python: [`crates/itofin-py/python/examples/amortizing_fixed_bond.py`](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/amortizing_fixed_bond.py)
 - Go: [`sdk/go/examples/amortizing_fixed_bond`](https://github.com/bitbrew-dev/libitofin/tree/main/sdk/go/examples/amortizing_fixed_bond)
 
 Native fixtures use independently selected cases: declining/plateau/constant

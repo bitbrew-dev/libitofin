@@ -11,7 +11,7 @@ back each deposit's own input rate. If it does, the bootstrap is consistent.
 
 Run it with:
 
-    python example/python/yield_curve.py
+    python crates/itofin-py/python/examples/yield_curve.py
 """
 
 # plugins
@@ -45,6 +45,7 @@ SWAP_DATA = [
 
 
 def main() -> None:
+    """Bootstrap a Euribor curve from deposit and swap helpers."""
     settings = Settings()
     calendar = Calendar.target()
     today = calendar.adjust(Date(15, 6, 2026), BusinessDayConvention.Following)

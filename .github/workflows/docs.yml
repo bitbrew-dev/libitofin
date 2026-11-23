@@ -9,7 +9,7 @@ on:
       - "docs/**"
       - "crates/itofin-py/python/**"
       - "crates/libitofin/examples/**"
-      - "example/**"
+      - "crates/itofin-py/python/examples/**"
       - "sdk/go/examples/**"
       - ".github/workflows/docs.yml"
 

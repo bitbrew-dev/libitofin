@@ -39,7 +39,7 @@ body); pricing the leg at two months instead misses every cached value by about
 
 Run it with:
 
-    python example/python/yoy_inflation_capfloor.py
+    python crates/itofin-py/python/examples/yoy_inflation_capfloor.py
 """
 
 # plugins
@@ -73,10 +73,39 @@ DAY_COUNTER = DayCounter.thirty360_bond_basis()
 # curve's base date from June to 1 August 2007, the origin every number below is
 # measured from. Dropping them silently moves every optionlet.
 FIX_DATA = [
-    189.9, 189.9, 189.6, 190.5, 191.6, 192.0, 192.2, 192.2, 192.6, 193.1,
-    193.3, 193.6, 194.1, 193.4, 194.2, 195.0, 196.5, 197.7, 198.5, 198.5,
-    199.2, 200.1, 200.4, 201.1, 202.7, 201.6, 203.1, 204.4, 205.4, 206.2,
-    207.3, -999.0, -999.0,
+    189.9,
+    189.9,
+    189.6,
+    190.5,
+    191.6,
+    192.0,
+    192.2,
+    192.2,
+    192.6,
+    193.1,
+    193.3,
+    193.6,
+    194.1,
+    193.4,
+    194.2,
+    195.0,
+    196.5,
+    197.7,
+    198.5,
+    198.5,
+    199.2,
+    200.1,
+    200.4,
+    201.1,
+    202.7,
+    201.6,
+    203.1,
+    204.4,
+    205.4,
+    206.2,
+    207.3,
+    -999.0,
+    -999.0,
 ]
 
 # (maturity, quoted year-on-year swap rate in percent).
@@ -211,14 +240,14 @@ def priced(settings, index, nominal, cap_floor_type, distribution) -> float:
 
 
 def price_under_each_distribution(settings, index, nominal) -> None:
+    """Price the year-on-year cap and floor under each distribution and compare with cached values."""
     print(f"Two-year year-on-year cap and floor struck at {STRIKE:.2%}, notional {NOMINAL:,.0f}, vol {VOLATILITY:.0%}")
     for distribution, (cached_cap, cached_floor, tolerance) in CACHED.items():
         cap = priced(settings, index, nominal, CapFloorType.Cap, distribution)
         floor = priced(settings, index, nominal, CapFloorType.Floor, distribution)
         print(f"\n  {distribution}:")
         print(
-            f"    cap   = {cap:10.4f}   cached={cached_cap:>9}   "
-            f"|diff|={abs(cap - cached_cap):.4f}  (tol {tolerance})"
+            f"    cap   = {cap:10.4f}   cached={cached_cap:>9}   |diff|={abs(cap - cached_cap):.4f}  (tol {tolerance})"
         )
         print(
             f"    floor = {floor:10.4f}   cached={cached_floor:>9}   "
@@ -259,6 +288,7 @@ def strike_and_atm_are_exclusive(settings, index, nominal) -> None:
 
 
 def main() -> None:
+    """Run the year-on-year cap and floor pricing examples."""
     settings, index, nominal = build_market()
     print(f"UK RPI last fixing date (the curve's base) = {index.underlying_index().last_fixing_date()}\n")
 

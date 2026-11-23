@@ -38,7 +38,7 @@ Python objects are unsendable. Existing public constructors are unchanged.
 
 ## Examples and evidence
 
-- [Python example](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/mf_state_process.py)
+- [Python example](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/mf_state_process.py)
 - [Go example](https://github.com/bitbrew-dev/libitofin/blob/main/sdk/go/examples/mf_state_process/main.go)
 - Fixture provenance: `sdk/go/testdata/mf_state_oracle.md`.
 

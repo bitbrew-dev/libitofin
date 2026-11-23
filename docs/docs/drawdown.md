@@ -32,7 +32,7 @@ from peak index 1 to trough index 2. Later recovery does not erase that loss.
 === "Python"
 
     ```python
-    --8<-- "example/python/drawdown.py"
+    --8<-- "crates/itofin-py/python/examples/drawdown.py"
     ```
 
 === "Go"
@@ -41,7 +41,7 @@ from peak index 1 to trough index 2. Later recovery does not erase that loss.
     --8<-- "sdk/go/examples/drawdown/main.go"
     ```
 
-From a native-build checkout, run `python example/python/drawdown.py` or
+From a native-build checkout, run `python crates/itofin-py/python/examples/drawdown.py` or
 `cd sdk/go && go run ./examples/drawdown`.
 
 ## Shared APIs and numerical limits

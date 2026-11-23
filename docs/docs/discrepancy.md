@@ -93,7 +93,7 @@ shape/work gate; passing a huge Python sequence still has conversion cost.
 Executable examples:
 
 - [Rust](https://github.com/bitbrew-dev/libitofin/blob/main/crates/libitofin/examples/discrepancy_statistics.rs)
-- [Python](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/discrepancy_statistics.py)
+- [Python](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/discrepancy_statistics.py)
 - [Go](https://github.com/bitbrew-dev/libitofin/blob/main/sdk/go/examples/discrepancy-statistics/main.go)
 - [Pinned oracle and regeneration](https://github.com/bitbrew-dev/libitofin/tree/main/sdk/go/testdata/discrepancy-statistics)
 

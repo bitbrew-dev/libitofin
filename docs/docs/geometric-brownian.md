@@ -77,7 +77,7 @@ process's log-price diffusion, not this arithmetic `volatility × x` diffusion.
     assert process.evolve(0.0, 100.0, 1.0, -6.0) == -15.0
     ```
 
-    [Complete Python example](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/geometric_brownian.py).
+    [Complete Python example](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/geometric_brownian.py).
 
 === "Go"
 
