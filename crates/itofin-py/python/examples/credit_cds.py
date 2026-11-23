@@ -22,7 +22,7 @@ runs but quietly misses the quotes.
 
 Run it with:
 
-    python example/python/credit_cds.py
+    python crates/itofin-py/python/examples/credit_cds.py
 """
 
 # plugins
@@ -161,6 +161,7 @@ def bootstrap_default_curve() -> None:
 
 
 def main() -> None:
+    """Run the single-name CDS pricing and hazard-rate bootstrap examples."""
     price_single_cds()
     bootstrap_default_curve()
 

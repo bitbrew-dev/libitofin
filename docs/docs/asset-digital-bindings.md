@@ -81,7 +81,7 @@ this factory does not change the general boundary contract.
 
 ## Examples and reference data
 
-- Python: `example/python/asset_digital.py`.
+- Python: `crates/itofin-py/python/examples/asset_digital.py`.
 - Go: `sdk/go/examples/asset_digital/main.go`.
 - Independent CSV: `crates/itofin-py/tests/fixtures/asset-digital/asset_fd_reference.csv`,
   with a byte-identical SDK testdata copy. Tracked copies normalize only original

@@ -22,7 +22,14 @@ process = BatesProcess(
     spot,
     FlatForward.from_quote(today, rate, dc),
     FlatForward.from_quote(today, dividend, dc),
-    0.04, 1.5, 0.04, 0.3, -0.5, 0.7, -0.12, 0.18,
+    0.04,
+    1.5,
+    0.04,
+    0.3,
+    -0.5,
+    0.7,
+    -0.12,
+    0.18,
 )
 model = BatesModel(process)
 engine = BatesEngine(model, integration_order=144)

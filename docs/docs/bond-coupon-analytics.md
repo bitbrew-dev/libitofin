@@ -47,7 +47,7 @@ queries, preserving native behavior.
 
 ## Examples
 
-Python: `example/python/bond_coupon_analytics.py`.
+Python: `crates/itofin-py/python/examples/bond_coupon_analytics.py`.
 
 Go: `sdk/go/examples/bond-coupon-analytics/main.go`.
 

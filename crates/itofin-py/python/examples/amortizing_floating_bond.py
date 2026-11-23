@@ -20,7 +20,18 @@ calendar, counter = Calendar.null_calendar(), DayCounter.actual360()
 rate = SimpleQuote(0.04)
 forward = FlatForward.from_quote(today, rate, counter)
 discount = FlatForward(today, 0.025, counter)
-index = IborIndex("AmortizingExample", Period(6, "Months"), 2, Currency.eur(), calendar, BDC.Following, False, counter, forward, settings)
+index = IborIndex(
+    "AmortizingExample",
+    Period(6, "Months"),
+    2,
+    Currency.eur(),
+    calendar,
+    BDC.Following,
+    False,
+    counter,
+    forward,
+    settings,
+)
 schedule = Schedule(Date(5, 10, 2026), Date(5, 10, 2027), Frequency.Quarterly, calendar, BDC.Unadjusted)
 bond = AmortizingFloatingRateBond(0, [1000.0, 800.0, 800.0, 500.0], schedule, index, counter, settings, spreads=[0.001])
 bond.set_engine(DiscountingBondEngine(discount, settings))

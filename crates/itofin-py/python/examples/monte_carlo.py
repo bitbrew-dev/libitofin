@@ -18,7 +18,7 @@ banded against QuantLib's cached values.
 
 Run it with:
 
-    python example/python/monte_carlo.py
+    python crates/itofin-py/python/examples/monte_carlo.py
 """
 
 # plugins
@@ -131,6 +131,7 @@ def mc_american() -> None:
 
 
 def main() -> None:
+    """Run the European, Heston and American Monte Carlo examples."""
     mc_european()
     mc_heston()
     mc_american()

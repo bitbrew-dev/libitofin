@@ -70,7 +70,7 @@ them. Missing/closed/mixed handles and unavailable Greeks report existing errors
 Python:
 
 ```python
---8<-- "example/python/gap_option.py"
+--8<-- "crates/itofin-py/python/examples/gap_option.py"
 ```
 
 Go:

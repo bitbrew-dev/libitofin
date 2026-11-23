@@ -111,4 +111,4 @@ A separately generated QuantLib 1.43 direct-default fixture covers six live
 reference-date/today inclusion policies with the discount reference on the
 payment/evaluation date. These tests reuse one cached instrument to verify that
 silent Settings updates are read without manual invalidation. Runnable examples:
-`example/python/float_float_swap.py` and `sdk/go/examples/float-float-swap`.
+`crates/itofin-py/python/examples/float_float_swap.py` and `sdk/go/examples/float-float-swap`.

@@ -471,7 +471,7 @@ Use **each channel's** `to_list()`/`NullableValues()` to mask its warmup zeroes.
     _ = result.ADX.NullableValues()
     ```
 
-Runnable examples: `python example/python/chart_adx.py` and, from `sdk/go`,
+Runnable examples: `python crates/itofin-py/python/examples/chart_adx.py` and, from `sdk/go`,
 `go run ./examples/chart_adx`.
 
 Rust exposes `math::chart::{Adx, adx, adx_default}`. Python's frozen `Adx`

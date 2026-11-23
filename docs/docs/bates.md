@@ -41,7 +41,7 @@ are not supported.
 === "Python"
 
     ```python
-    --8<-- "example/python/bates_option.py"
+    --8<-- "crates/itofin-py/python/examples/bates_option.py"
     ```
 
 === "Go"

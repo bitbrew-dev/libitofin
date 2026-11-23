@@ -42,7 +42,7 @@ rather than absolute.
 
 Run it with:
 
-    python example/python/isda_cds.py
+    python crates/itofin-py/python/examples/isda_cds.py
 """
 
 # plugins
@@ -175,12 +175,11 @@ MARKIT_VALUES = [
 def grid_cases():
     """The 20 (term date, spread, recovery) triples, in the loop order the
     Markit values are indexed by."""
-    return [
-        (term_date, spread, recovery) for term_date in TERM_DATES for spread in SPREADS for recovery in RECOVERIES
-    ]
+    return [(term_date, spread, recovery) for term_date in TERM_DATES for spread in SPREADS for recovery in RECOVERIES]
 
 
 def markit_grid() -> None:
+    """Reproduce the Markit upfront grid against the ISDA USD curve."""
     settings = Settings()
     # The evaluation date goes in before any helper is built: the helpers date
     # off it, and MakeCreditDefaultSwap derives its trade date from it.
@@ -282,6 +281,7 @@ MARKIT_ACCRUAL = 1000.0
 
 
 def eur_reconciliation() -> None:
+    """Reconcile an EUR CDS valuation with Markit's reference values."""
     settings = Settings()
     settings.set_evaluation_date(VALUE_DATE)
     discount = isda_curve(
@@ -355,6 +355,7 @@ def eur_reconciliation() -> None:
 
 
 def main() -> None:
+    """Run the ISDA CDS examples: the USD upfront grid and EUR reconciliation."""
     markit_grid()
     eur_reconciliation()
 

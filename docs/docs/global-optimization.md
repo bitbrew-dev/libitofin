@@ -267,7 +267,7 @@ checks the calibration cost below `1e-6`, rather than inventing a reference sigm
 === "Python"
 
     ```python
-    --8<-- "example/python/differential_evolution.py"
+    --8<-- "crates/itofin-py/python/examples/differential_evolution.py"
     ```
 
 === "Rust"
@@ -292,7 +292,7 @@ The existing root-RSS calibration cost is unchanged.
 === "Python"
 
     ```python
-    --8<-- "example/python/particle_swarm.py"
+    --8<-- "crates/itofin-py/python/examples/particle_swarm.py"
     ```
 
 === "Rust"
@@ -319,7 +319,7 @@ or a transformed scalar.
 === "Python"
 
     ```python
-    --8<-- "example/python/hybrid_simulated_annealing.py"
+    --8<-- "crates/itofin-py/python/examples/hybrid_simulated_annealing.py"
     ```
 
 === "Rust"
@@ -343,7 +343,7 @@ The calibration scalar remains root-RSS, not the unrooted sum of squares.
 === "Python"
 
     ```python
-    --8<-- "example/python/firefly.py"
+    --8<-- "crates/itofin-py/python/examples/firefly.py"
     ```
 
 === "Rust"

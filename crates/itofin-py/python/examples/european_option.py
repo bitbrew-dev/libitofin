@@ -9,7 +9,7 @@ The numbers below reproduce the pricing gate in
 
 Run it with:
 
-    python example/python/european_option.py
+    python crates/itofin-py/python/examples/european_option.py
 """
 
 # plugins
@@ -21,6 +21,7 @@ from itofin.time import Date, DayCounter
 
 
 def main() -> None:
+    """Price a European call with the analytic Black-Scholes engine."""
     # D5: one Settings object holds the evaluation date and is threaded into
     # every instrument. There is no global "today"; an unset date is an error,
     # not a silent fall back to the system clock.

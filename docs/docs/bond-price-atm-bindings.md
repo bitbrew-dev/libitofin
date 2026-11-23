@@ -52,7 +52,7 @@ calculation; callers retain pointer validity/non-overlap obligations.
 
 ## Examples
 
-- Python: `example/python/bond_price_atm.py`.
+- Python: `crates/itofin-py/python/examples/bond_price_atm.py`.
 - Go: `sdk/go/examples/bond-price-atm/main.go`.
 
 ## Provenance

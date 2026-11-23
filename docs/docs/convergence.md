@@ -97,7 +97,7 @@ is needed.
 Executable examples:
 
 - [Rust](https://github.com/bitbrew-dev/libitofin/blob/main/crates/libitofin/examples/convergence_statistics.rs)
-- [Python](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/convergence_statistics.py)
+- [Python](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/convergence_statistics.py)
 - [Go](https://github.com/bitbrew-dev/libitofin/blob/main/sdk/go/examples/convergence-statistics/main.go)
 - [Pinned oracle and regeneration](https://github.com/bitbrew-dev/libitofin/tree/main/sdk/go/testdata/convergence-statistics)
 

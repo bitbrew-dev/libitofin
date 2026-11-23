@@ -44,6 +44,12 @@ go get github.com/bitbrew-dev/libitofin/sdk/go@v0.24.0
 Use `-tags itofin_external` for builds, runs, tests, and vet outside this checkout.
 [Go guide and examples](wiki/go.md) · [API reference](https://pkg.go.dev/github.com/bitbrew-dev/libitofin/sdk/go)
 
+## Examples
+
+- [Rust](crates/libitofin/examples)
+- [Go](sdk/go/examples)
+- [Python](crates/itofin-py/python/examples)
+
 ## Documentation
 
 | Topic | Start here |

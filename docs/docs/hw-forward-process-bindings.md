@@ -77,5 +77,5 @@ Source reference: QuantLib `9863b578af0caa4cecabf697196533e84a8308b6`,
 checkout from the separately compiled QuantLib 1.43 wheel and independent
 high-precision limits. Bindings do not establish full QuantLib/model parity.
 
-[Python example](https://github.com/bitbrew-dev/libitofin/blob/main/example/python/hw_forward_process.py)
+[Python example](https://github.com/bitbrew-dev/libitofin/blob/main/crates/itofin-py/python/examples/hw_forward_process.py)
 and [Go example](https://github.com/bitbrew-dev/libitofin/tree/main/sdk/go/examples/hw_forward_process).

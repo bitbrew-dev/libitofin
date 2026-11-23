@@ -15,7 +15,7 @@ self-check.
 
 Run it with:
 
-    python example/python/vanilla_swap.py
+    python crates/itofin-py/python/examples/vanilla_swap.py
 """
 
 # plugins
@@ -32,6 +32,7 @@ END = Date(15, 1, 2033)
 
 
 def make_market():
+    """Build the settings, flat 3% curve and Euribor 6M index shared by the swap examples."""
     settings = Settings()
     settings.set_evaluation_date(REF)
     # A flat 3% continuous curve for both forwarding and discounting.
@@ -92,6 +93,7 @@ def priced_by_hand():
 
 
 def main() -> None:
+    """Price a par swap from the builder and a hand-built swap at a 3% coupon."""
     par = priced_with_builder()
     print("MakeVanillaSwap, par 5Y payer (fixed_rate=None):")
     print(f"  fair_rate = {par.fair_rate() * 100:.6f}%")

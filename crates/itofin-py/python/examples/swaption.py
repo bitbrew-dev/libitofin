@@ -8,7 +8,7 @@ The ATM fixing is pinned by sdk/go/testdata/makeswaption_oracle.json (QuantLib
 both checks retain an absolute tolerance of 1e-12. The 4% forwarding curve is
 equivalent to that fixture's 5% continuous curve plus a -1% zero spread.
 
-Run from the repository root: python example/python/swaption.py
+Run from the repository root: python crates/itofin-py/python/examples/swaption.py
 """
 
 # standard library

@@ -33,7 +33,7 @@ discounts on Act/Act (ISDA).
 
 Run it with:
 
-    python example/python/yoy_inflation_swap.py
+    python crates/itofin-py/python/examples/yoy_inflation_swap.py
 """
 
 # plugins
@@ -59,9 +59,36 @@ FIXED_RATE = 0.03
 # here: the last real figure, 207.3, is the July 2007 period, which is what
 # makes 1 July 2007 the curve's base date.
 FIX_DATA = [
-    189.9, 189.9, 189.6, 190.5, 191.6, 192.0, 192.2, 192.2, 192.6, 193.1,
-    193.3, 193.6, 194.1, 193.4, 194.2, 195.0, 196.5, 197.7, 198.5, 198.5,
-    199.2, 200.1, 200.4, 201.1, 202.7, 201.6, 203.1, 204.4, 205.4, 206.2,
+    189.9,
+    189.9,
+    189.6,
+    190.5,
+    191.6,
+    192.0,
+    192.2,
+    192.2,
+    192.6,
+    193.1,
+    193.3,
+    193.6,
+    194.1,
+    193.4,
+    194.2,
+    195.0,
+    196.5,
+    197.7,
+    198.5,
+    198.5,
+    199.2,
+    200.1,
+    200.4,
+    201.1,
+    202.7,
+    201.6,
+    203.1,
+    204.4,
+    205.4,
+    206.2,
     207.3,
 ]
 
@@ -90,6 +117,7 @@ class Market:
     calendar and annual schedule every leg and swap below shares."""
 
     def __init__(self):
+        """Bootstrap the year-on-year curve and index with the RPI fixings they need."""
         self.settings = Settings()
         self.settings.set_evaluation_date(TODAY)
         self.calendar = Calendar.united_kingdom()
@@ -180,6 +208,7 @@ class Market:
 
 
 def price_the_swap(market: Market) -> None:
+    """Print the NPV, leg values, and fair rate and spread of the 3Y swap."""
     swap = market.swap()
     print(f"3Y year-on-year inflation swap, payer of {FIXED_RATE:.2%} on {NOTIONAL:,.0f}, to {MATURITY}:")
     print(f"  NPV                  = {swap.npv():14.4f}")
@@ -250,6 +279,7 @@ def the_rate_lags_off_the_accrual_end(market: Market) -> None:
 
 
 def main() -> None:
+    """Run the year-on-year inflation swap examples."""
     market = Market()
     price_the_swap(market)
     inspect_the_coupons(market)
